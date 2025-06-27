@@ -4,7 +4,7 @@ import { Mic, Sparkles, ArrowRight } from "lucide-react";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden bg-gradient-to-br from-background via-background to-blue-950/20">
+    <section className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden bg-gradient-to-br from-background via-background to-blue-950/20 pt-20">
       {/* Background elements */}
       <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
       <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
@@ -17,8 +17,8 @@ const Hero = () => {
           <span className="text-sm font-medium text-primary">AI-Powered Pitch Optimization</span>
         </div>
 
-        {/* Main heading */}
-        <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
+        {/* Main heading - reduced font size */}
+        <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
           Transform Your
           <br />
           <span className="text-primary">Raw Ideas</span> Into
@@ -26,8 +26,8 @@ const Hero = () => {
           Perfect Pitches
         </h1>
 
-        {/* Subheading */}
-        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
+        {/* Subheading - reduced font size */}
+        <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
           Record yourself talking about your startup idea and watch AI transform it into a 
           <span className="text-primary font-semibold"> compelling one-liner</span> and a 
           <span className="text-accent font-semibold"> Guy Kawasaki-style pitch deck structure</span>.
