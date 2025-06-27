@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit2, Trash2, Copy, Download, Calendar, Clock } from "lucide-react";
+import { Edit2, Trash2, Copy, Download, Calendar, Clock, Mic } from "lucide-react";
 
 // Mock data - this will be replaced with real data from Supabase later
 const mockPitches = [
