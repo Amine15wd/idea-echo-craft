@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   return (
@@ -19,9 +20,11 @@ const Header = () => {
           <Button variant="ghost" className="text-foreground hover:text-primary">
             Sign in
           </Button>
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-            Let's get started
-          </Button>
+          <Link to="/dashboard">
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              Let's get started
+            </Button>
+          </Link>
         </div>
       </div>
     </header>
