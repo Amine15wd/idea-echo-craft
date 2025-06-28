@@ -9,14 +9,14 @@ const Create = () => {
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcript, setTranscript] = useState("");
-  const [generatedPitch, setGeneratedPitch] = useState<{
+  const [generatedRingtone, setGeneratedRingtone] = useState<{
     oneLiner: string;
     structure: string[];
   } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -41,6 +41,11 @@ const Create = () => {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        
+        // Create audio element for playback
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioRef.current = new Audio(audioUrl);
+        
         await transcribeAudio(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -64,59 +69,100 @@ const Create = () => {
   };
 
   const transcribeAudio = async (audioBlob: Blob) => {
-    // Mock transcription - in real app, you'd send to a transcription service
-    setTimeout(() => {
-      const mockTranscript = "This is a mock transcript of your pitch. In a real application, this would be the actual transcription of your recording from a service like OpenAI's Whisper API.";
-      setTranscript(mockTranscript);
+    try {
+      // For now, using a mock transcription
+      // In a real implementation, you would send the audioBlob to a transcription service
+      setTimeout(() => {
+        const mockTranscript = "This is a mock transcript of your recorded audio. In a real application, this would be the actual transcription from a service like OpenAI's Whisper API or similar speech-to-text service.";
+        setTranscript(mockTranscript);
+        setIsProcessing(false);
+      }, 2000);
+      
+      // Real implementation would look like:
+      // const formData = new FormData();
+      // formData.append('audio', audioBlob);
+      // const response = await fetch('/api/transcribe', {
+      //   method: 'POST',
+      //   body: formData
+      // });
+      // const { transcript } = await response.json();
+      // setTranscript(transcript);
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      setTranscript("Error transcribing audio. Please try again.");
       setIsProcessing(false);
-    }, 2000);
+    }
   };
 
   const reRecord = () => {
     setHasRecording(false);
     setTranscript("");
-    setGeneratedPitch(null);
+    setGeneratedRingtone(null);
     setRecordingTime(0);
+    if (audioRef.current) {
+      URL.revokeObjectURL(audioRef.current.src);
+      audioRef.current = null;
+    }
   };
 
-  const createPitch = async () => {
+  const createRingtone = async () => {
     setIsProcessing(true);
     
-    // Mock AI generation - in real app, you'd call OpenAI API
-    setTimeout(() => {
-      const mockPitch = {
-        oneLiner: "Revolutionary AI-powered pitch assistant that transforms your ideas into compelling presentations.",
-        structure: [
-          "Problem: Entrepreneurs struggle to articulate their vision clearly",
-          "Solution: AI-powered voice analysis and pitch optimization",
-          "Market: $50B presentation software market growing at 15% annually",
-          "Business Model: SaaS subscription with tiered pricing",
-          "Competition: Traditional presentation tools lack AI optimization",
-          "Traction: Early beta users show 300% improvement in pitch clarity"
-        ]
-      };
-      setGeneratedPitch(mockPitch);
+    try {
+      // Mock AI generation - replace with actual OpenAI API call
+      setTimeout(() => {
+        const mockRingtone = {
+          oneLiner: "AI-powered voice assistant that transforms spoken ideas into memorable ringtones.",
+          structure: [
+            "Hook: Catchy opening that grabs attention",
+            "Problem: Current ringtones are generic and boring", 
+            "Solution: AI analyzes your voice and creates personalized tones",
+            "Benefits: Unique, memorable, and perfectly matched to your personality",
+            "Call to Action: Try it now and make your phone truly yours"
+          ]
+        };
+        setGeneratedRingtone(mockRingtone);
+        setIsProcessing(false);
+      }, 3000);
+
+      // Real OpenAI implementation would look like:
+      // const response = await fetch('/api/generate-ringtone', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ transcript })
+      // });
+      // const ringtone = await response.json();
+      // setGeneratedRingtone(ringtone);
+    } catch (error) {
+      console.error('Error generating ringtone:', error);
+      alert('Error generating ringtone. Please try again.');
       setIsProcessing(false);
-    }, 3000);
+    }
   };
 
-  const savePitch = () => {
-    // In real app, save to database/library
-    const pitchData = {
+  const saveRingtone = () => {
+    if (!generatedRingtone) return;
+    
+    const ringtoneData = {
       id: Date.now(),
-      title: generatedPitch?.oneLiner.split(' ').slice(0, 4).join(' ') + '...',
-      oneLiner: generatedPitch?.oneLiner,
+      title: generatedRingtone.oneLiner.split(' ').slice(0, 4).join(' ') + '...',
+      oneLiner: generatedRingtone.oneLiner,
       transcript,
+      structure: generatedRingtone.structure,
       createdAt: new Date().toISOString().split('T')[0],
       duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
     };
     
-    // Store in localStorage for now
-    const existingPitches = JSON.parse(localStorage.getItem('pitches') || '[]');
-    existingPitches.unshift(pitchData);
-    localStorage.setItem('pitches', JSON.stringify(existingPitches));
+    const existingRingtones = JSON.parse(localStorage.getItem('pitches') || '[]');
+    existingRingtones.unshift(ringtoneData);
+    localStorage.setItem('pitches', JSON.stringify(existingRingtones));
     
-    alert('Pitch saved to library!');
+    alert('Ringtone saved to library!');
+    reRecord();
+  };
+
+  const deleteRingtone = () => {
+    setGeneratedRingtone(null);
     reRecord();
   };
 
@@ -126,27 +172,28 @@ const Create = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (generatedPitch) {
+  // Generated Ringtone Display
+  if (generatedRingtone) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-card/50 border border-border/20 rounded-xl p-8 backdrop-blur-sm">
-            <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
-              Your Generated Pitch
+          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
+            <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
+              Your Generated Ringtone
             </h1>
             
             <div className="space-y-6">
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-primary mb-3">One-Liner</h3>
-                <p className="text-foreground text-lg">{generatedPitch.oneLiner}</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-3">One-Liner</h3>
+                <p className="text-gray-800 text-lg">{generatedRingtone.oneLiner}</p>
               </div>
               
-              <div className="bg-muted/20 border border-border/20 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Pitch Structure</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Ringtone Structure</h3>
                 <div className="space-y-3">
-                  {generatedPitch.structure.map((section, index) => (
-                    <div key={index} className="p-3 bg-card/30 rounded-lg">
-                      <p className="text-sm text-muted-foreground">{section}</p>
+                  {generatedRingtone.structure.map((section, index) => (
+                    <div key={index} className="p-3 bg-white rounded-lg border">
+                      <p className="text-sm text-gray-600">{section}</p>
                     </div>
                   ))}
                 </div>
@@ -154,10 +201,10 @@ const Create = () => {
             </div>
             
             <div className="flex gap-4 mt-8 justify-center">
-              <Button onClick={savePitch} className="bg-primary hover:bg-primary/90">
+              <Button onClick={saveRingtone} className="bg-blue-600 hover:bg-blue-700 text-white">
                 Save to Library
               </Button>
-              <Button onClick={reRecord} variant="outline">
+              <Button onClick={deleteRingtone} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
                 Delete & Re-record
               </Button>
             </div>
@@ -167,6 +214,7 @@ const Create = () => {
     );
   }
 
+  // Recording Complete State
   if (hasRecording && !isProcessing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
@@ -188,8 +236,8 @@ const Create = () => {
           )}
 
           <div className="flex gap-4 justify-center">
-            <Button onClick={createPitch} className="bg-primary hover:bg-primary/90">
-              Create Pitch
+            <Button onClick={createRingtone} className="bg-primary hover:bg-primary/90">
+              Create Ringtone
             </Button>
             <Button onClick={reRecord} variant="outline">
               <RotateCcw className="w-4 h-4 mr-2" />
@@ -201,16 +249,17 @@ const Create = () => {
     );
   }
 
+  // Main Recording Interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
       <div className="max-w-2xl mx-auto text-center">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
-            Create Your Pitch
+            Create Your Ringtone
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Record yourself talking about your startup idea and let AI transform it into a compelling pitch
+            Record yourself speaking about any topic and let AI transform it into a personalized ringtone
           </p>
         </div>
 
@@ -261,9 +310,9 @@ const Create = () => {
               <>
                 <p className="text-lg font-medium">Click to start recording</p>
                 <div className="text-sm space-y-2">
-                  <p>• Speak clearly about your startup idea</p>
-                  <p>• Describe your problem, solution, and target market</p>
-                  <p>• Keep it conversational and natural</p>
+                  <p>• Speak clearly in Arabic or English</p>
+                  <p>• Talk about any topic you'd like</p>
+                  <p>• Keep it natural and conversational</p>
                 </div>
               </>
             )}
@@ -277,8 +326,8 @@ const Create = () => {
             
             {isProcessing && (
               <>
-                <p className="text-lg font-medium text-primary">Processing your pitch...</p>
-                <p className="text-sm">AI is analyzing your recording and creating your pitch</p>
+                <p className="text-lg font-medium text-primary">Processing your recording...</p>
+                <p className="text-sm">AI is transcribing your audio</p>
               </>
             )}
           </div>
@@ -289,16 +338,16 @@ const Create = () => {
           <h3 className="text-lg font-semibold mb-3 text-foreground">💡 Pro Tips</h3>
           <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
             <div>
-              <strong className="text-foreground">Be Specific:</strong> Mention concrete details about your solution
+              <strong className="text-foreground">Be Clear:</strong> Speak at a normal pace with good pronunciation
             </div>
             <div>
-              <strong className="text-foreground">Show Passion:</strong> Let your enthusiasm come through
+              <strong className="text-foreground">Stay Focused:</strong> 30-60 seconds is usually perfect
             </div>
             <div>
-              <strong className="text-foreground">Include Numbers:</strong> Market size, potential revenue, etc.
+              <strong className="text-foreground">Be Creative:</strong> Any topic can become an interesting ringtone
             </div>
             <div>
-              <strong className="text-foreground">Stay Focused:</strong> 2-3 minutes is usually enough
+              <strong className="text-foreground">Have Fun:</strong> Let your personality shine through
             </div>
           </div>
         </div>
