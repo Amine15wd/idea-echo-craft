@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Mic, Sparkles, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -17,7 +18,7 @@ const Hero = () => {
           <span className="text-sm font-medium text-primary">AI-Powered Pitch Optimization</span>
         </div>
 
-        {/* Main heading - reduced font size */}
+        {/* Main heading */}
         <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
           Transform Your
           <br />
@@ -26,7 +27,7 @@ const Hero = () => {
           Perfect Pitches
         </h1>
 
-        {/* Subheading - reduced font size */}
+        {/* Subheading */}
         <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
           Record yourself talking about your startup idea and watch AI transform it into a 
           <span className="text-primary font-semibold"> compelling one-liner</span> and a 
@@ -35,14 +36,16 @@ const Hero = () => {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          <Button 
-            size="lg" 
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg font-semibold rounded-xl transition-all duration-300 hover:scale-105 animate-pulse-glow group"
-          >
-            <Mic className="w-5 h-5 mr-3 group-hover:animate-pulse" />
-            Start Recording Your Pitch
-            <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <Link to="/auth">
+            <Button 
+              size="lg" 
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg font-semibold rounded-xl transition-all duration-300 hover:scale-105 animate-pulse-glow group"
+            >
+              <Mic className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+              Start Recording Your Pitch
+              <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
           
           <Button 
             variant="outline" 

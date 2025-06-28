@@ -17,10 +17,12 @@ const Header = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" className="text-foreground hover:text-primary">
-            Sign in
-          </Button>
-          <Link to="/dashboard">
+          <Link to="/auth">
+            <Button variant="ghost" className="text-foreground hover:text-primary">
+              Sign in
+            </Button>
+          </Link>
+          <Link to="/auth">
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
               Let's get started
             </Button>
