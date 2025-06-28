@@ -1,7 +1,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Play, Loader2, RotateCcw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Mic, Square, Loader2, RotateCcw, Trash2, Save } from "lucide-react";
+import { toast } from "sonner";
 
 const Create = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -9,14 +11,18 @@ const Create = () => {
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcript, setTranscript] = useState("");
-  const [generatedRingtone, setGeneratedRingtone] = useState<{
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || "");
+  const [generatedPresentation, setGeneratedPresentation] = useState<{
+    title: string;
     oneLiner: string;
-    structure: string[];
+    structure: {
+      section: string;
+      content: string;
+    }[];
   } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -41,11 +47,6 @@ const Create = () => {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        
-        // Create audio element for playback
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioRef.current = new Audio(audioUrl);
-        
         await transcribeAudio(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -53,9 +54,10 @@ const Create = () => {
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      toast.success("Recording started");
     } catch (error) {
       console.error('Error accessing microphone:', error);
-      alert('Error accessing microphone. Please check permissions.');
+      toast.error('Error accessing microphone. Please check permissions.');
     }
   };
 
@@ -65,105 +67,131 @@ const Create = () => {
       setIsRecording(false);
       setHasRecording(true);
       setIsProcessing(true);
+      toast.success("Recording stopped, processing...");
     }
   };
 
   const transcribeAudio = async (audioBlob: Blob) => {
+    if (!apiKey) {
+      toast.error("Please enter your OpenAI API key");
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      // For now, using a mock transcription
-      // In a real implementation, you would send the audioBlob to a transcription service
-      setTimeout(() => {
-        const mockTranscript = "This is a mock transcript of your recorded audio. In a real application, this would be the actual transcription from a service like OpenAI's Whisper API or similar speech-to-text service.";
-        setTranscript(mockTranscript);
-        setIsProcessing(false);
-      }, 2000);
-      
-      // Real implementation would look like:
-      // const formData = new FormData();
-      // formData.append('audio', audioBlob);
-      // const response = await fetch('/api/transcribe', {
-      //   method: 'POST',
-      //   body: formData
-      // });
-      // const { transcript } = await response.json();
-      // setTranscript(transcript);
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.wav');
+      formData.append('model', 'whisper-1');
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setTranscript(data.text);
+      setIsProcessing(false);
+      toast.success("Audio transcribed successfully");
     } catch (error) {
       console.error('Error transcribing audio:', error);
+      toast.error("Error transcribing audio. Please check your API key.");
       setTranscript("Error transcribing audio. Please try again.");
       setIsProcessing(false);
     }
   };
 
-  const reRecord = () => {
-    setHasRecording(false);
-    setTranscript("");
-    setGeneratedRingtone(null);
-    setRecordingTime(0);
-    if (audioRef.current) {
-      URL.revokeObjectURL(audioRef.current.src);
-      audioRef.current = null;
+  const createPresentation = async () => {
+    if (!apiKey) {
+      toast.error("Please enter your OpenAI API key");
+      return;
     }
-  };
 
-  const createRingtone = async () => {
     setIsProcessing(true);
     
     try {
-      // Mock AI generation - replace with actual OpenAI API call
-      setTimeout(() => {
-        const mockRingtone = {
-          oneLiner: "AI-powered voice assistant that transforms spoken ideas into memorable ringtones.",
-          structure: [
-            "Hook: Catchy opening that grabs attention",
-            "Problem: Current ringtones are generic and boring", 
-            "Solution: AI analyzes your voice and creates personalized tones",
-            "Benefits: Unique, memorable, and perfectly matched to your personality",
-            "Call to Action: Try it now and make your phone truly yours"
-          ]
-        };
-        setGeneratedRingtone(mockRingtone);
-        setIsProcessing(false);
-      }, 3000);
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a presentation expert. Analyze the given speech and create a comprehensive, well-structured presentation. Return only valid JSON with this structure: {"title": "presentation title", "oneLiner": "compelling one-line summary", "structure": [{"section": "section name", "content": "detailed content for this section"}]}'
+            },
+            {
+              role: 'user',
+              content: `Please analyze this speech and create a comprehensive presentation: "${transcript}"`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        }),
+      });
 
-      // Real OpenAI implementation would look like:
-      // const response = await fetch('/api/generate-ringtone', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ transcript })
-      // });
-      // const ringtone = await response.json();
-      // setGeneratedRingtone(ringtone);
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const presentationData = JSON.parse(data.choices[0].message.content);
+      setGeneratedPresentation(presentationData);
+      setIsProcessing(false);
+      toast.success("Presentation created successfully!");
     } catch (error) {
-      console.error('Error generating ringtone:', error);
-      alert('Error generating ringtone. Please try again.');
+      console.error('Error generating presentation:', error);
+      toast.error('Error generating presentation. Please try again.');
       setIsProcessing(false);
     }
   };
 
-  const saveRingtone = () => {
-    if (!generatedRingtone) return;
+  const savePresentation = () => {
+    if (!generatedPresentation) return;
     
-    const ringtoneData = {
+    const presentationData = {
       id: Date.now(),
-      title: generatedRingtone.oneLiner.split(' ').slice(0, 4).join(' ') + '...',
-      oneLiner: generatedRingtone.oneLiner,
+      title: generatedPresentation.title,
+      oneLiner: generatedPresentation.oneLiner,
       transcript,
-      structure: generatedRingtone.structure,
+      structure: generatedPresentation.structure,
       createdAt: new Date().toISOString().split('T')[0],
       duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
     };
     
-    const existingRingtones = JSON.parse(localStorage.getItem('pitches') || '[]');
-    existingRingtones.unshift(ringtoneData);
-    localStorage.setItem('pitches', JSON.stringify(existingRingtones));
+    const existingPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');
+    existingPresentations.unshift(presentationData);
+    localStorage.setItem('pitches', JSON.stringify(existingPresentations));
     
-    alert('Ringtone saved to library!');
-    reRecord();
+    toast.success('Presentation saved to library!');
+    resetForm();
   };
 
-  const deleteRingtone = () => {
-    setGeneratedRingtone(null);
-    reRecord();
+  const deleteAndReRecord = () => {
+    setGeneratedPresentation(null);
+    resetForm();
+    toast.success('Ready to record again');
+  };
+
+  const resetForm = () => {
+    setHasRecording(false);
+    setTranscript("");
+    setGeneratedPresentation(null);
+    setRecordingTime(0);
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    localStorage.setItem('openai_api_key', value);
   };
 
   const formatTime = (seconds: number) => {
@@ -172,40 +200,51 @@ const Create = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Generated Ringtone Display
-  if (generatedRingtone) {
+  // Generated Presentation Display
+  if (generatedPresentation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
-            <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
-              Your Generated Ringtone
-            </h1>
+      <div className="min-h-screen bg-white p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-4 text-gray-900">
+                {generatedPresentation.title}
+              </h1>
+              <p className="text-xl text-blue-600 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                {generatedPresentation.oneLiner}
+              </p>
+            </div>
             
             <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-blue-800 mb-3">One-Liner</h3>
-                <p className="text-gray-800 text-lg">{generatedRingtone.oneLiner}</p>
-              </div>
-              
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Ringtone Structure</h3>
-                <div className="space-y-3">
-                  {generatedRingtone.structure.map((section, index) => (
-                    <div key={index} className="p-3 bg-white rounded-lg border">
-                      <p className="text-sm text-gray-600">{section}</p>
-                    </div>
-                  ))}
+              {generatedPresentation.structure.map((section, index) => (
+                <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                    {section.section}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {section.content}
+                  </p>
                 </div>
-              </div>
+              ))}
             </div>
             
             <div className="flex gap-4 mt-8 justify-center">
-              <Button onClick={saveRingtone} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Save to Library
-              </Button>
-              <Button onClick={deleteRingtone} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+              <Button 
+                onClick={deleteAndReRecord} 
+                variant="outline" 
+                className="border-red-300 text-red-600 hover:bg-red-50"
+                size="lg"
+              >
+                <Trash2 className="w-5 h-5 mr-2" />
                 Delete & Re-record
+              </Button>
+              <Button 
+                onClick={savePresentation} 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                Save to Library
               </Button>
             </div>
           </div>
@@ -218,9 +257,9 @@ const Create = () => {
   if (hasRecording && !isProcessing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-4 text-foreground">
               Recording Complete
             </h1>
             <p className="text-lg text-muted-foreground">
@@ -229,17 +268,27 @@ const Create = () => {
           </div>
 
           {transcript && (
-            <div className="bg-card/50 border border-border/20 rounded-xl p-6 mb-8 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold mb-3">Transcript</h3>
-              <p className="text-muted-foreground">{transcript}</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8 text-left">
+              <h3 className="text-lg font-semibold mb-3 text-center">Transcript</h3>
+              <div className="max-h-40 overflow-y-auto">
+                <p className="text-gray-700">{transcript}</p>
+              </div>
             </div>
           )}
 
           <div className="flex gap-4 justify-center">
-            <Button onClick={createRingtone} className="bg-primary hover:bg-primary/90">
-              Create Ringtone
+            <Button 
+              onClick={createPresentation} 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="lg"
+            >
+              Create Presentation
             </Button>
-            <Button onClick={reRecord} variant="outline">
+            <Button 
+              onClick={resetForm} 
+              variant="outline"
+              size="lg"
+            >
               <RotateCcw className="w-4 h-4 mr-2" />
               Re-record
             </Button>
@@ -253,19 +302,35 @@ const Create = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
       <div className="max-w-2xl mx-auto text-center">
-        {/* Header */}
+        {/* API Key Input */}
+        {!apiKey && (
+          <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <h3 className="text-lg font-semibold mb-4 text-yellow-800">
+              OpenAI API Key Required
+            </h3>
+            <Input
+              type="password"
+              placeholder="Enter your OpenAI API key"
+              value={apiKey}
+              onChange={(e) => handleApiKeyChange(e.target.value)}
+              className="max-w-md mx-auto"
+            />
+            <p className="text-sm text-yellow-700 mt-2">
+              Your API key is stored locally and used for transcription and AI generation
+            </p>
+          </div>
+        )}
+
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
-            Create Your Ringtone
+            Create Your Presentation
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Record yourself speaking about any topic and let AI transform it into a personalized ringtone
+            Record yourself speaking about any topic and let AI transform it into a comprehensive presentation
           </p>
         </div>
 
-        {/* Recording Interface */}
         <div className="relative">
-          {/* Main Record Button */}
           <div className="relative mb-8">
             <div className={`w-48 h-48 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${
               isRecording 
@@ -274,7 +339,7 @@ const Create = () => {
             }`}>
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
+                disabled={isProcessing || !apiKey}
                 className={`w-24 h-24 rounded-full transition-all duration-300 ${
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600 text-white'
@@ -291,7 +356,6 @@ const Create = () => {
               </Button>
             </div>
             
-            {/* Recording indicator */}
             {isRecording && (
               <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
                 <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-full px-4 py-2">
@@ -304,15 +368,16 @@ const Create = () => {
             )}
           </div>
 
-          {/* Instructions */}
           <div className="space-y-4 text-muted-foreground">
             {!isRecording && !isProcessing && (
               <>
-                <p className="text-lg font-medium">Click to start recording</p>
+                <p className="text-lg font-medium">
+                  {apiKey ? "Click to start recording" : "Enter API key to continue"}
+                </p>
                 <div className="text-sm space-y-2">
                   <p>• Speak clearly in Arabic or English</p>
                   <p>• Talk about any topic you'd like</p>
-                  <p>• Keep it natural and conversational</p>
+                  <p>• AI will create a comprehensive presentation</p>
                 </div>
               </>
             )}
@@ -327,28 +392,9 @@ const Create = () => {
             {isProcessing && (
               <>
                 <p className="text-lg font-medium text-primary">Processing your recording...</p>
-                <p className="text-sm">AI is transcribing your audio</p>
+                <p className="text-sm">AI is transcribing and preparing your presentation</p>
               </>
             )}
-          </div>
-        </div>
-
-        {/* Tips */}
-        <div className="mt-16 p-6 bg-card/50 border border-border/20 rounded-xl backdrop-blur-sm">
-          <h3 className="text-lg font-semibold mb-3 text-foreground">💡 Pro Tips</h3>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-            <div>
-              <strong className="text-foreground">Be Clear:</strong> Speak at a normal pace with good pronunciation
-            </div>
-            <div>
-              <strong className="text-foreground">Stay Focused:</strong> 30-60 seconds is usually perfect
-            </div>
-            <div>
-              <strong className="text-foreground">Be Creative:</strong> Any topic can become an interesting ringtone
-            </div>
-            <div>
-              <strong className="text-foreground">Have Fun:</strong> Let your personality shine through
-            </div>
           </div>
         </div>
       </div>
