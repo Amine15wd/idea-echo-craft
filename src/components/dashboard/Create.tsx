@@ -158,6 +158,13 @@ const Create = () => {
     setRecordingTime(0);
   };
 
+  const reRecord = () => {
+    setTranscript("");
+    setHasRecording(false);
+    setRecordingTime(0);
+    toast.success('Ready to record again');
+  };
+
   const handleApiKeyChange = (value: string) => {
     
   };
@@ -221,7 +228,7 @@ const Create = () => {
     );
   }
 
-  // Recording Complete State
+  // Recording Complete State - Show only Re-record and Generate Pitch options
   if (hasRecording && !isProcessing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
@@ -233,16 +240,10 @@ const Create = () => {
             <p className="text-lg text-muted-foreground">
               Duration: {formatTime(recordingTime)}
             </p>
+            <p className="text-md text-muted-foreground mt-2">
+              Transcription ready. What would you like to do next?
+            </p>
           </div>
-
-          {transcript && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8 text-left">
-              <h3 className="text-lg font-semibold mb-3 text-center">Transcript</h3>
-              <div className="max-h-40 overflow-y-auto">
-                <p className="text-gray-700">{transcript}</p>
-              </div>
-            </div>
-          )}
 
           <div className="flex gap-4 justify-center">
             <Button 
@@ -250,10 +251,10 @@ const Create = () => {
               className="bg-blue-600 hover:bg-blue-700 text-white"
               size="lg"
             >
-              Create Presentation
+              Generate Pitch
             </Button>
             <Button 
-              onClick={resetForm} 
+              onClick={reRecord} 
               variant="outline"
               size="lg"
             >
@@ -339,7 +340,7 @@ const Create = () => {
             {isProcessing && (
               <>
                 <p className="text-lg font-medium text-primary">Processing your recording...</p>
-                <p className="text-sm">AI is transcribing and preparing your presentation</p>
+                <p className="text-sm">AI is transcribing your audio</p>
               </>
             )}
           </div>
