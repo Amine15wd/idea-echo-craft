@@ -1,9 +1,8 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Mic, Square, Loader2, RotateCcw, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Create = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -11,7 +10,6 @@ const Create = () => {
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcript, setTranscript] = useState("");
-  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || "");
   const [generatedPresentation, setGeneratedPresentation] = useState<{
     title: string;
     oneLiner: string;
@@ -72,80 +70,51 @@ const Create = () => {
   };
 
   const transcribeAudio = async (audioBlob: Blob) => {
-    if (!apiKey) {
-      toast.error("Please enter your OpenAI API key");
-      setIsProcessing(false);
-      return;
-    }
-
     try {
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.wav');
-      formData.append('model', 'whisper-1');
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onload = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        
+        const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+          body: { audio: base64Audio }
+        });
 
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: formData
-      });
+        if (error) {
+          throw error;
+        }
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
+        setTranscript(data.text);
+        setIsProcessing(false);
+        toast.success("Audio transcribed successfully");
+      };
 
-      const data = await response.json();
-      setTranscript(data.text);
-      setIsProcessing(false);
-      toast.success("Audio transcribed successfully");
+      reader.onerror = () => {
+        throw new Error('Failed to read audio file');
+      };
     } catch (error) {
       console.error('Error transcribing audio:', error);
-      toast.error("Error transcribing audio. Please check your API key.");
+      toast.error("Error transcribing audio. Please try again.");
       setTranscript("Error transcribing audio. Please try again.");
       setIsProcessing(false);
     }
   };
 
   const createPresentation = async () => {
-    if (!apiKey) {
-      toast.error("Please enter your OpenAI API key");
-      return;
-    }
-
     setIsProcessing(true);
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a presentation expert. Analyze the given speech and create a comprehensive, well-structured presentation. Return only valid JSON with this structure: {"title": "presentation title", "oneLiner": "compelling one-line summary", "structure": [{"section": "section name", "content": "detailed content for this section"}]}'
-            },
-            {
-              role: 'user',
-              content: `Please analyze this speech and create a comprehensive presentation: "${transcript}"`
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
-        }),
+      const { data, error } = await supabase.functions.invoke('generate-presentation', {
+        body: { transcript }
       });
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
-      const presentationData = JSON.parse(data.choices[0].message.content);
-      setGeneratedPresentation(presentationData);
+      setGeneratedPresentation(data);
       setIsProcessing(false);
       toast.success("Presentation created successfully!");
     } catch (error) {
@@ -190,8 +159,7 @@ const Create = () => {
   };
 
   const handleApiKeyChange = (value: string) => {
-    setApiKey(value);
-    localStorage.setItem('openai_api_key', value);
+    
   };
 
   const formatTime = (seconds: number) => {
@@ -302,25 +270,6 @@ const Create = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
       <div className="max-w-2xl mx-auto text-center">
-        {/* API Key Input */}
-        {!apiKey && (
-          <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <h3 className="text-lg font-semibold mb-4 text-yellow-800">
-              OpenAI API Key Required
-            </h3>
-            <Input
-              type="password"
-              placeholder="Enter your OpenAI API key"
-              value={apiKey}
-              onChange={(e) => handleApiKeyChange(e.target.value)}
-              className="max-w-md mx-auto"
-            />
-            <p className="text-sm text-yellow-700 mt-2">
-              Your API key is stored locally and used for transcription and AI generation
-            </p>
-          </div>
-        )}
-
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
             Create Your Presentation
@@ -339,7 +288,7 @@ const Create = () => {
             }`}>
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing || !apiKey}
+                disabled={isProcessing}
                 className={`w-24 h-24 rounded-full transition-all duration-300 ${
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600 text-white'
@@ -371,9 +320,7 @@ const Create = () => {
           <div className="space-y-4 text-muted-foreground">
             {!isRecording && !isProcessing && (
               <>
-                <p className="text-lg font-medium">
-                  {apiKey ? "Click to start recording" : "Enter API key to continue"}
-                </p>
+                <p className="text-lg font-medium">Click to start recording</p>
                 <div className="text-sm space-y-2">
                   <p>• Speak clearly in Arabic or English</p>
                   <p>• Talk about any topic you'd like</p>
