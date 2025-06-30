@@ -1,6 +1,7 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Loader2, RotateCcw, Trash2, Save } from "lucide-react";
+import { Mic, Square, Loader2, RotateCcw, Trash2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,6 +11,8 @@ const Create = () => {
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcript, setTranscript] = useState("");
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [generatedPresentation, setGeneratedPresentation] = useState<{
     title: string;
     oneLiner: string;
@@ -52,6 +55,8 @@ const Create = () => {
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      setProcessingError(null);
+      setRetryCount(0);
       toast.success("Recording started");
     } catch (error) {
       console.error('Error accessing microphone:', error);
@@ -69,56 +74,120 @@ const Create = () => {
     }
   };
 
-  const transcribeAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = async (audioBlob: Blob, isRetry: boolean = false) => {
     try {
+      if (!isRetry) {
+        setProcessingError(null);
+      }
+      
+      console.log('Starting transcription...', { isRetry, retryCount });
+      
       // Convert blob to base64
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
       reader.onload = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        
-        const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-          body: { audio: base64Audio }
-        });
+        try {
+          const base64Audio = (reader.result as string).split(',')[1];
+          
+          console.log('Calling transcribe-audio function...');
+          const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+            body: { audio: base64Audio }
+          });
 
-        if (error) {
-          throw error;
+          if (error) {
+            console.error('Supabase function error:', error);
+            throw new Error(error.message || 'Transcription failed');
+          }
+
+          if (!data || !data.text) {
+            throw new Error('No transcription text received');
+          }
+
+          console.log('Transcription successful:', data.text);
+          setTranscript(data.text);
+          setIsProcessing(false);
+          setProcessingError(null);
+          toast.success("Audio transcribed successfully");
+        } catch (err) {
+          console.error('Transcription error:', err);
+          handleTranscriptionError(err as Error, audioBlob);
         }
-
-        setTranscript(data.text);
-        setIsProcessing(false);
-        toast.success("Audio transcribed successfully");
       };
 
       reader.onerror = () => {
-        throw new Error('Failed to read audio file');
+        const error = new Error('Failed to read audio file');
+        handleTranscriptionError(error, audioBlob);
       };
     } catch (error) {
-      console.error('Error transcribing audio:', error);
-      toast.error("Error transcribing audio. Please try again.");
-      setTranscript("Error transcribing audio. Please try again.");
-      setIsProcessing(false);
+      console.error('Error in transcribeAudio:', error);
+      handleTranscriptionError(error as Error, audioBlob);
+    }
+  };
+
+  const handleTranscriptionError = (error: Error, audioBlob?: Blob) => {
+    console.error('Transcription error details:', error);
+    
+    let errorMessage = "Error transcribing audio. ";
+    
+    if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
+      errorMessage = "OpenAI API quota exceeded. Please check your billing settings or try again later.";
+    } else if (error.message.includes('invalid') || error.message.includes('authentication')) {
+      errorMessage = "API authentication error. Please check your API key configuration.";
+    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+      errorMessage = "Network error. Please check your connection and try again.";
+    } else {
+      errorMessage += error.message;
+    }
+    
+    setProcessingError(errorMessage);
+    setIsProcessing(false);
+    toast.error(errorMessage);
+    
+    // Store audio blob for retry
+    if (audioBlob) {
+      audioChunksRef.current = [audioBlob];
+    }
+  };
+
+  const retryTranscription = async () => {
+    if (audioChunksRef.current.length > 0) {
+      const audioBlob = audioChunksRef.current[0];
+      setIsProcessing(true);
+      setRetryCount(prev => prev + 1);
+      toast.info(`Retrying transcription... (Attempt ${retryCount + 1})`);
+      await transcribeAudio(audioBlob, true);
     }
   };
 
   const createPresentation = async () => {
     setIsProcessing(true);
+    setProcessingError(null);
     
     try {
+      console.log('Creating presentation with transcript:', transcript);
+      
       const { data, error } = await supabase.functions.invoke('generate-presentation', {
         body: { transcript }
       });
 
       if (error) {
-        throw error;
+        console.error('Presentation generation error:', error);
+        throw new Error(error.message || 'Failed to generate presentation');
       }
 
+      if (!data) {
+        throw new Error('No presentation data received');
+      }
+
+      console.log('Presentation generated successfully:', data);
       setGeneratedPresentation(data);
       setIsProcessing(false);
       toast.success("Presentation created successfully!");
     } catch (error) {
       console.error('Error generating presentation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setProcessingError(`Error generating presentation: ${errorMessage}`);
       toast.error('Error generating presentation. Please try again.');
       setIsProcessing(false);
     }
@@ -235,32 +304,91 @@ const Create = () => {
         <div className="max-w-3xl mx-auto text-center">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-4 text-foreground">
-              Recording Complete
+              {processingError ? "Processing Error" : "Recording Complete"}
             </h1>
             <p className="text-lg text-muted-foreground">
               Duration: {formatTime(recordingTime)}
             </p>
-            <p className="text-md text-muted-foreground mt-2">
-              Transcription ready. What would you like to do next?
-            </p>
+            
+            {processingError ? (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center justify-center gap-2 text-red-600 mb-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-medium">Transcription Failed</span>
+                </div>
+                <p className="text-sm text-red-700 mb-4">{processingError}</p>
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    onClick={retryTranscription} 
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    size="sm"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Retry Transcription
+                  </Button>
+                  <Button 
+                    onClick={reRecord} 
+                    variant="outline"
+                    size="sm"
+                  >
+                    Record Again
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-md text-muted-foreground mt-2">
+                Transcription ready. What would you like to do next?
+              </p>
+            )}
           </div>
 
-          <div className="flex gap-4 justify-center">
-            <Button 
-              onClick={createPresentation} 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              size="lg"
-            >
-              Generate Pitch
-            </Button>
-            <Button 
-              onClick={reRecord} 
-              variant="outline"
-              size="lg"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Re-record
-            </Button>
+          {!processingError && (
+            <div className="flex gap-4 justify-center">
+              <Button 
+                onClick={createPresentation} 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+              >
+                Generate Pitch
+              </Button>
+              <Button 
+                onClick={reRecord} 
+                variant="outline"
+                size="lg"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Re-record
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Processing State
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
+        <div className="max-w-2xl mx-auto text-center">
+          <div className="mb-8">
+            <div className="w-48 h-48 mx-auto rounded-full flex items-center justify-center bg-primary/10 border-4 border-primary/30 mb-6">
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
+            </div>
+            <h1 className="text-4xl font-bold mb-4 text-foreground">
+              Processing your recording...
+            </h1>
+            <p className="text-lg text-muted-foreground mb-2">
+              AI is transcribing your audio
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This usually takes 10-30 seconds. Please wait...
+            </p>
+            {retryCount > 0 && (
+              <p className="text-sm text-yellow-600 mt-2">
+                Retry attempt {retryCount}...
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -296,9 +424,7 @@ const Create = () => {
                     : 'bg-primary hover:bg-primary/90 text-primary-foreground'
                 }`}
               >
-                {isProcessing ? (
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                ) : isRecording ? (
+                {isRecording ? (
                   <Square className="w-8 h-8" />
                 ) : (
                   <Mic className="w-8 h-8" />
@@ -334,13 +460,6 @@ const Create = () => {
               <>
                 <p className="text-lg font-medium text-red-500">Recording in progress...</p>
                 <p className="text-sm">Click the stop button when you're done</p>
-              </>
-            )}
-            
-            {isProcessing && (
-              <>
-                <p className="text-lg font-medium text-primary">Processing your recording...</p>
-                <p className="text-sm">AI is transcribing your audio</p>
               </>
             )}
           </div>
