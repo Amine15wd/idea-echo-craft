@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2, RotateCcw, Trash2, Save, AlertCircle } from "lucide-react";
@@ -82,46 +81,34 @@ const Create = () => {
       
       console.log('Starting transcription...', { isRetry, retryCount });
       
-      // Convert blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
+      // Convert blob to base64 - simplified approach
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
       
-      reader.onload = async () => {
-        try {
-          const base64Audio = (reader.result as string).split(',')[1];
-          
-          console.log('Calling transcribe-audio function...');
-          const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-            body: { audio: base64Audio }
-          });
+      console.log('Calling transcribe-audio function...');
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
 
-          if (error) {
-            console.error('Supabase function error:', error);
-            throw new Error(error.message || 'Transcription failed');
-          }
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Transcription failed');
+      }
 
-          if (!data || !data.text) {
-            throw new Error('No transcription text received');
-          }
+      if (!data || !data.text) {
+        throw new Error('No transcription text received');
+      }
 
-          console.log('Transcription successful:', data.text);
-          setTranscript(data.text);
-          setIsProcessing(false);
-          setProcessingError(null);
-          toast.success("Audio transcribed successfully");
-        } catch (err) {
-          console.error('Transcription error:', err);
-          handleTranscriptionError(err as Error, audioBlob);
-        }
-      };
-
-      reader.onerror = () => {
-        const error = new Error('Failed to read audio file');
-        handleTranscriptionError(error, audioBlob);
-      };
-    } catch (error) {
-      console.error('Error in transcribeAudio:', error);
-      handleTranscriptionError(error as Error, audioBlob);
+      console.log('Transcription successful:', data.text);
+      setTranscript(data.text);
+      setIsProcessing(false);
+      setProcessingError(null);
+      toast.success("Audio transcribed successfully");
+    } catch (err) {
+      console.error('Transcription error:', err);
+      handleTranscriptionError(err as Error, audioBlob);
     }
   };
 
@@ -131,7 +118,7 @@ const Create = () => {
     let errorMessage = "Error transcribing audio. ";
     
     if (error.message.includes('quota') || error.message.includes('insufficient_quota')) {
-      errorMessage = "OpenAI API quota exceeded. Please check your billing settings or try again later.";
+      errorMessage = "API quota exceeded. Please check your API settings or try again later.";
     } else if (error.message.includes('invalid') || error.message.includes('authentication')) {
       errorMessage = "API authentication error. Please check your API key configuration.";
     } else if (error.message.includes('network') || error.message.includes('fetch')) {

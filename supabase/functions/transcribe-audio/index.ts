@@ -24,15 +24,7 @@ serve(async (req) => {
       throw new Error('Gemini API key not configured');
     }
 
-    // Convert base64 to binary
-    const binaryString = atob(audio);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Convert to base64 for Gemini API
-    const audioBase64 = btoa(String.fromCharCode(...bytes));
+    console.log('Starting transcription with Gemini API');
 
     // Use Gemini API for audio transcription
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
@@ -44,12 +36,12 @@ serve(async (req) => {
         contents: [{
           parts: [
             {
-              text: "Please transcribe this audio file. Provide only the transcribed text without any additional commentary."
+              text: "Please transcribe this audio file. Provide only the transcribed text without any additional commentary or formatting."
             },
             {
               inline_data: {
                 mime_type: "audio/wav",
-                data: audioBase64
+                data: audio
               }
             }
           ]
@@ -68,12 +60,14 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('Gemini API response:', data);
     
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
       throw new Error('No transcription received from Gemini');
     }
 
     const transcribedText = data.candidates[0].content.parts[0].text;
+    console.log('Transcription successful:', transcribedText);
     
     return new Response(
       JSON.stringify({ text: transcribedText }),
