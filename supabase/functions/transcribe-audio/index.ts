@@ -19,9 +19,9 @@ serve(async (req) => {
       throw new Error('No audio data provided');
     }
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
     // Convert base64 to binary
@@ -31,29 +31,52 @@ serve(async (req) => {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Create form data for OpenAI API
-    const formData = new FormData();
-    const audioBlob = new Blob([bytes], { type: 'audio/wav' });
-    formData.append('file', audioBlob, 'recording.wav');
-    formData.append('model', 'whisper-1');
+    // Convert to base64 for Gemini API
+    const audioBase64 = btoa(String.fromCharCode(...bytes));
 
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    // Use Gemini API for audio transcription
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: formData
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            {
+              text: "Please transcribe this audio file. Provide only the transcribed text without any additional commentary."
+            },
+            {
+              inline_data: {
+                mime_type: "audio/wav",
+                data: audioBase64
+              }
+            }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+        }
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('No transcription received from Gemini');
+    }
+
+    const transcribedText = data.candidates[0].content.parts[0].text;
+    
     return new Response(
-      JSON.stringify({ text: data.text }),
+      JSON.stringify({ text: transcribedText }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200

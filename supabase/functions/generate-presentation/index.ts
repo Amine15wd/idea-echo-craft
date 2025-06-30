@@ -19,41 +19,54 @@ serve(async (req) => {
       throw new Error('No transcript provided');
     }
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a presentation expert. Analyze the given speech and create a comprehensive, well-structured presentation. Return only valid JSON with this structure: {"title": "presentation title", "oneLiner": "compelling one-line summary", "structure": [{"section": "section name", "content": "detailed content for this section"}]}'
-          },
-          {
-            role: 'user',
-            content: `Please analyze this speech and create a comprehensive presentation: "${transcript}"`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-      }),
+        contents: [{
+          parts: [{
+            text: `You are a presentation expert. Analyze the given speech and create a comprehensive, well-structured presentation. Return only valid JSON with this structure: {"title": "presentation title", "oneLiner": "compelling one-line summary", "structure": [{"section": "section name", "content": "detailed content for this section"}]}
+
+Please analyze this speech and create a comprehensive presentation: "${transcript}"`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const presentationData = JSON.parse(data.choices[0].message.content);
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('No response received from Gemini');
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    
+    // Clean up the response text to extract JSON
+    let jsonText = responseText.trim();
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    const presentationData = JSON.parse(jsonText);
     
     return new Response(
       JSON.stringify(presentationData),
