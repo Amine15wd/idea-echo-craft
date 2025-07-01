@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -22,7 +23,19 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth?reset=true`,
+        });
+
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success("Password reset email sent! Check your inbox.");
+          setIsForgotPassword(false);
+          setIsLogin(true);
+        }
+      } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -59,6 +72,24 @@ const Auth = () => {
     }
   };
 
+  const getTitle = () => {
+    if (isForgotPassword) return "Reset password";
+    return isLogin ? "Welcome back" : "Get started";
+  };
+
+  const getDescription = () => {
+    if (isForgotPassword) return "Enter your email to receive a password reset link";
+    return isLogin
+      ? "Sign in to your PitchPal AI account"
+      : "Create your PitchPal AI account";
+  };
+
+  const getButtonText = () => {
+    if (loading) return "Loading...";
+    if (isForgotPassword) return "Send reset email";
+    return isLogin ? "Sign In" : "Create Account";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/20 flex items-center justify-center p-6">
       {/* Background elements */}
@@ -79,18 +110,16 @@ const Auth = () => {
               <Sparkles className="w-6 h-6 text-primary-foreground" />
             </div>
             <CardTitle className="text-2xl font-bold">
-              {isLogin ? "Welcome back" : "Get started"}
+              {getTitle()}
             </CardTitle>
             <CardDescription>
-              {isLogin
-                ? "Sign in to your PitchPal AI account"
-                : "Create your PitchPal AI account"}
+              {getDescription()}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && (
+              {!isLogin && !isForgotPassword && (
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
                   <div className="relative">
@@ -102,7 +131,7 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="pl-10"
-                      required={!isLogin}
+                      required={!isLogin && !isForgotPassword}
                     />
                   </div>
                 </div>
@@ -124,41 +153,65 @@ const Auth = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+              {!isForgotPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading
-                  ? "Loading..."
-                  : isLogin
-                  ? "Sign In"
-                  : "Create Account"}
+                {getButtonText()}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <Button
-                variant="ghost"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-sm"
-              >
-                {isLogin
-                  ? "Don't have an account? Sign up"
-                  : "Already have an account? Sign in"}
-              </Button>
+            <div className="mt-6 text-center space-y-2">
+              {!isForgotPassword && (
+                <>
+                  {isLogin && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      Forgot your password?
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsLogin(!isLogin)}
+                    className="text-sm block w-full"
+                  >
+                    {isLogin
+                      ? "Don't have an account? Sign up"
+                      : "Already have an account? Sign in"}
+                  </Button>
+                </>
+              )}
+              
+              {isForgotPassword && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setIsLogin(true);
+                  }}
+                  className="text-sm"
+                >
+                  Back to sign in
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
