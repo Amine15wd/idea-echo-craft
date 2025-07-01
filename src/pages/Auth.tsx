@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +18,7 @@ const Auth = () => {
   const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [devToken, setDevToken] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -44,10 +44,14 @@ const Auth = () => {
           throw new Error(functionError.message || 'Failed to send reset token');
         }
 
-        // Store token temporarily for development
-        if (data?.token) {
-          localStorage.setItem('reset_token_' + email, data.token);
-          toast.success(`Reset code sent! For testing: ${data.token}`);
+        console.log('Reset token response:', data);
+
+        // Store token temporarily (for development and backup)
+        localStorage.setItem('reset_token_' + email, token);
+        
+        if (data?.dev_mode) {
+          setDevToken(data.token);
+          toast.success(`Development mode: Reset code is ${data.token}`);
         } else {
           toast.success("Reset code sent to your email!");
         }
@@ -71,6 +75,7 @@ const Auth = () => {
         setIsLogin(true);
         setResetToken("");
         setPassword("");
+        setDevToken("");
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -109,9 +114,9 @@ const Auth = () => {
   };
 
   const copyResetCode = () => {
-    const storedToken = localStorage.getItem('reset_token_' + email);
-    if (storedToken) {
-      navigator.clipboard.writeText(storedToken);
+    const tokenToCopy = devToken || localStorage.getItem('reset_token_' + email);
+    if (tokenToCopy) {
+      navigator.clipboard.writeText(tokenToCopy);
       toast.success("Reset code copied to clipboard!");
     }
   };
@@ -222,7 +227,7 @@ const Auth = () => {
                       required
                       maxLength={6}
                     />
-                    {localStorage.getItem('reset_token_' + email) && (
+                    {(devToken || localStorage.getItem('reset_token_' + email)) && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -234,9 +239,9 @@ const Auth = () => {
                       </Button>
                     )}
                   </div>
-                  {localStorage.getItem('reset_token_' + email) && (
+                  {devToken && (
                     <p className="text-xs text-muted-foreground">
-                      For testing: Click the copy button to get the reset code
+                      Development mode: Your reset code is {devToken}
                     </p>
                   )}
                 </div>
@@ -298,6 +303,7 @@ const Auth = () => {
                     setResetEmailSent(false);
                     setIsLogin(true);
                     setResetToken("");
+                    setDevToken("");
                   }}
                   className="text-sm"
                 >
