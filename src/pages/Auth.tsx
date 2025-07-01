@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +12,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [isResetWithToken, setIsResetWithToken] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  const [devToken, setDevToken] = useState("");
+  const [devPassword, setDevPassword] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -30,53 +29,30 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isForgotPassword && !isResetWithToken) {
-        // Generate a simple 6-digit token
-        const token = Math.floor(100000 + Math.random() * 900000).toString();
-        const redirectUrl = `${window.location.origin}/auth?reset=true`;
-        
-        // Call our edge function to send the reset token
+      if (isForgotPassword) {
+        // Call our edge function to send the user's password
         const { data, error: functionError } = await supabase.functions.invoke('send-reset-token', {
-          body: { email, token, redirectUrl }
+          body: { email }
         });
 
         if (functionError) {
-          throw new Error(functionError.message || 'Failed to send reset token');
+          throw new Error(functionError.message || 'Failed to send password');
         }
 
-        console.log('Reset token response:', data);
+        console.log('Password retrieval response:', data);
 
-        // Store token temporarily (for development and backup)
-        localStorage.setItem('reset_token_' + email, token);
-        
         if (data?.dev_mode) {
-          setDevToken(data.token);
-          toast.success(`Development mode: Reset code is ${data.token}`);
+          setDevPassword(data.password);
+          toast.success(`Development mode: Your password is ${data.password}`);
         } else {
-          toast.success("Reset code sent to your email!");
+          toast.success("Your password has been sent to your email!");
         }
         
         setResetEmailSent(true);
-        setIsResetWithToken(true);
-      } else if (isResetWithToken) {
-        // Verify token and reset password
-        const storedToken = localStorage.getItem('reset_token_' + email);
-        
-        if (!storedToken || storedToken !== resetToken) {
-          throw new Error('Invalid or expired reset code');
-        }
-
-        // Reset password using Supabase admin function would go here
-        // For now, we'll simulate success and redirect to login
-        localStorage.removeItem('reset_token_' + email);
-        toast.success("Password reset code verified! Please sign in.");
-        setIsForgotPassword(false);
-        setIsResetWithToken(false);
-        setIsLogin(true);
-        setResetToken("");
-        setPassword("");
-        setDevToken("");
       } else if (isLogin) {
+        // Store password in localStorage for development simulation
+        localStorage.setItem(`user_password_${email}`, password);
+        
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -89,6 +65,9 @@ const Auth = () => {
           navigate("/dashboard");
         }
       } else {
+        // Store password in localStorage for development simulation
+        localStorage.setItem(`user_password_${email}`, password);
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -113,27 +92,21 @@ const Auth = () => {
     }
   };
 
-  const copyResetCode = () => {
-    const tokenToCopy = devToken || localStorage.getItem('reset_token_' + email);
-    if (tokenToCopy) {
-      navigator.clipboard.writeText(tokenToCopy);
-      toast.success("Reset code copied to clipboard!");
+  const copyPassword = () => {
+    const passwordToCopy = devPassword || localStorage.getItem(`user_password_${email}`);
+    if (passwordToCopy) {
+      navigator.clipboard.writeText(passwordToCopy);
+      toast.success("Password copied to clipboard!");
     }
   };
 
   const getTitle = () => {
-    if (isForgotPassword) {
-      if (isResetWithToken) return "Enter reset code";
-      return "Reset password";
-    }
+    if (isForgotPassword) return "Forgot password";
     return isLogin ? "Welcome back" : "Get started";
   };
 
   const getDescription = () => {
-    if (isForgotPassword) {
-      if (isResetWithToken) return "Enter the reset code sent to your email";
-      return "Enter your email to receive a reset code";
-    }
+    if (isForgotPassword) return "Enter your email to receive your password";
     return isLogin
       ? "Sign in to your PitchPal AI account"
       : "Create your PitchPal AI account";
@@ -141,10 +114,7 @@ const Auth = () => {
 
   const getButtonText = () => {
     if (loading) return "Loading...";
-    if (isForgotPassword) {
-      if (isResetWithToken) return "Verify Code";
-      return "Send reset code";
-    }
+    if (isForgotPassword) return "Send my password";
     return isLogin ? "Sign In" : "Create Account";
   };
 
@@ -207,45 +177,9 @@ const Auth = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
                     required
-                    disabled={isResetWithToken && resetEmailSent}
                   />
                 </div>
               </div>
-
-              {isResetWithToken && (
-                <div className="space-y-2">
-                  <Label htmlFor="resetToken">Reset Code</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="resetToken"
-                      type="text"
-                      placeholder="Enter the 6-digit code"
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      className="pl-10"
-                      required
-                      maxLength={6}
-                    />
-                    {(devToken || localStorage.getItem('reset_token_' + email)) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1 h-8 w-8 p-0"
-                        onClick={copyResetCode}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {devToken && (
-                    <p className="text-xs text-muted-foreground">
-                      Development mode: Your reset code is {devToken}
-                    </p>
-                  )}
-                </div>
-              )}
 
               {!isForgotPassword && (
                 <div className="space-y-2">
@@ -261,6 +195,28 @@ const Auth = () => {
                       className="pl-10"
                       required
                     />
+                  </div>
+                </div>
+              )}
+
+              {resetEmailSent && devPassword && (
+                <div className="space-y-2">
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <p className="text-sm text-green-800 mb-2">Your password:</p>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-white px-2 py-1 rounded text-sm font-mono border">
+                        {devPassword}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={copyPassword}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -299,11 +255,9 @@ const Auth = () => {
                   variant="ghost"
                   onClick={() => {
                     setIsForgotPassword(false);
-                    setIsResetWithToken(false);
                     setResetEmailSent(false);
                     setIsLogin(true);
-                    setResetToken("");
-                    setDevToken("");
+                    setDevPassword("");
                   }}
                   className="text-sm"
                 >
