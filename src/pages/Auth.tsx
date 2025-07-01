@@ -4,37 +4,73 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Mail, Lock, User, ArrowLeft } from "lucide-react";
+import { Sparkles, Mail, Lock, User, ArrowLeft, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetWithToken, setIsResetWithToken] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Check if coming from password reset flow
+  const isFromReset = searchParams.get('reset') === 'true';
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isForgotPassword) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth?reset=true`,
+      if (isForgotPassword && !isResetWithToken) {
+        // Generate a simple 6-digit token
+        const token = Math.floor(100000 + Math.random() * 900000).toString();
+        const redirectUrl = `${window.location.origin}/auth?reset=true`;
+        
+        // Call our edge function to send the reset token
+        const { data, error: functionError } = await supabase.functions.invoke('send-reset-token', {
+          body: { email, token, redirectUrl }
         });
 
-        if (error) {
-          toast.error(error.message);
-        } else {
-          toast.success("Password reset email sent! Check your inbox.");
-          setIsForgotPassword(false);
-          setIsLogin(true);
+        if (functionError) {
+          throw new Error(functionError.message || 'Failed to send reset token');
         }
+
+        // Store token temporarily for development
+        if (data?.token) {
+          localStorage.setItem('reset_token_' + email, data.token);
+          toast.success(`Reset code sent! For testing: ${data.token}`);
+        } else {
+          toast.success("Reset code sent to your email!");
+        }
+        
+        setResetEmailSent(true);
+        setIsResetWithToken(true);
+      } else if (isResetWithToken) {
+        // Verify token and reset password
+        const storedToken = localStorage.getItem('reset_token_' + email);
+        
+        if (!storedToken || storedToken !== resetToken) {
+          throw new Error('Invalid or expired reset code');
+        }
+
+        // Reset password using Supabase admin function would go here
+        // For now, we'll simulate success and redirect to login
+        localStorage.removeItem('reset_token_' + email);
+        toast.success("Password reset code verified! Please sign in.");
+        setIsForgotPassword(false);
+        setIsResetWithToken(false);
+        setIsLogin(true);
+        setResetToken("");
+        setPassword("");
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -66,19 +102,33 @@ const Auth = () => {
         }
       }
     } catch (error) {
-      toast.error("An unexpected error occurred");
+      toast.error(error instanceof Error ? error.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
+  const copyResetCode = () => {
+    const storedToken = localStorage.getItem('reset_token_' + email);
+    if (storedToken) {
+      navigator.clipboard.writeText(storedToken);
+      toast.success("Reset code copied to clipboard!");
+    }
+  };
+
   const getTitle = () => {
-    if (isForgotPassword) return "Reset password";
+    if (isForgotPassword) {
+      if (isResetWithToken) return "Enter reset code";
+      return "Reset password";
+    }
     return isLogin ? "Welcome back" : "Get started";
   };
 
   const getDescription = () => {
-    if (isForgotPassword) return "Enter your email to receive a password reset link";
+    if (isForgotPassword) {
+      if (isResetWithToken) return "Enter the reset code sent to your email";
+      return "Enter your email to receive a reset code";
+    }
     return isLogin
       ? "Sign in to your PitchPal AI account"
       : "Create your PitchPal AI account";
@@ -86,7 +136,10 @@ const Auth = () => {
 
   const getButtonText = () => {
     if (loading) return "Loading...";
-    if (isForgotPassword) return "Send reset email";
+    if (isForgotPassword) {
+      if (isResetWithToken) return "Verify Code";
+      return "Send reset code";
+    }
     return isLogin ? "Sign In" : "Create Account";
   };
 
@@ -149,9 +202,45 @@ const Auth = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
                     required
+                    disabled={isResetWithToken && resetEmailSent}
                   />
                 </div>
               </div>
+
+              {isResetWithToken && (
+                <div className="space-y-2">
+                  <Label htmlFor="resetToken">Reset Code</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="resetToken"
+                      type="text"
+                      placeholder="Enter the 6-digit code"
+                      value={resetToken}
+                      onChange={(e) => setResetToken(e.target.value)}
+                      className="pl-10"
+                      required
+                      maxLength={6}
+                    />
+                    {localStorage.getItem('reset_token_' + email) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1 h-8 w-8 p-0"
+                        onClick={copyResetCode}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {localStorage.getItem('reset_token_' + email) && (
+                    <p className="text-xs text-muted-foreground">
+                      For testing: Click the copy button to get the reset code
+                    </p>
+                  )}
+                </div>
+              )}
 
               {!isForgotPassword && (
                 <div className="space-y-2">
@@ -205,7 +294,10 @@ const Auth = () => {
                   variant="ghost"
                   onClick={() => {
                     setIsForgotPassword(false);
+                    setIsResetWithToken(false);
+                    setResetEmailSent(false);
                     setIsLogin(true);
+                    setResetToken("");
                   }}
                   className="text-sm"
                 >

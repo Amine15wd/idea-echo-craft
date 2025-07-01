@@ -4,7 +4,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, S
 import { Mic, Library, Sparkles, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import Create from "@/components/dashboard/Create";
+import CreateTabs from "@/components/dashboard/CreateTabs";
 import LibraryView from "@/components/dashboard/LibraryView";
 
 const Dashboard = () => {
@@ -24,7 +24,7 @@ const Dashboard = () => {
     id: 'create' as const,
     title: 'Create',
     icon: Mic,
-    description: 'Record new pitch'
+    description: 'Record or type content'
   }, {
     id: 'library' as const,
     title: 'Library',
@@ -86,7 +86,7 @@ const Dashboard = () => {
         </Sidebar>
 
         <main className="flex-1 overflow-auto">
-          {activeTab === 'create' && <Create />}
+          {activeTab === 'create' && <CreateTabs />}
           {activeTab === 'library' && <LibraryView />}
         </main>
       </div>

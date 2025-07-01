@@ -1,10 +1,25 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2, RotateCcw, Trash2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-const Create = () => {
+interface CreateProps {
+  onPresentationGenerated?: (presentation: any) => void;
+  onProcessingChange?: (isProcessing: boolean) => void;
+  isProcessing?: boolean;
+  initialPresentation?: any;
+  onReset?: () => void;
+}
+
+const Create = ({ 
+  onPresentationGenerated, 
+  onProcessingChange, 
+  isProcessing: externalProcessing,
+  initialPresentation,
+  onReset
+}: CreateProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasRecording, setHasRecording] = useState(false);
@@ -19,10 +34,13 @@ const Create = () => {
       section: string;
       content: string;
     }[];
-  } | null>(null);
+  } | null>(initialPresentation || null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Handle external processing state
+  const currentlyProcessing = externalProcessing || isProcessing;
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -69,6 +87,7 @@ const Create = () => {
       setIsRecording(false);
       setHasRecording(true);
       setIsProcessing(true);
+      onProcessingChange?.(true);
       toast.success("Recording stopped, processing...");
     }
   };
@@ -81,7 +100,6 @@ const Create = () => {
       
       console.log('Starting transcription...', { isRetry, retryCount });
       
-      // Convert blob to base64 - simplified approach
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
@@ -104,6 +122,7 @@ const Create = () => {
       console.log('Transcription successful:', data.text);
       setTranscript(data.text);
       setIsProcessing(false);
+      onProcessingChange?.(false);
       setProcessingError(null);
       toast.success("Audio transcribed successfully");
     } catch (err) {
@@ -129,9 +148,9 @@ const Create = () => {
     
     setProcessingError(errorMessage);
     setIsProcessing(false);
+    onProcessingChange?.(false);
     toast.error(errorMessage);
     
-    // Store audio blob for retry
     if (audioBlob) {
       audioChunksRef.current = [audioBlob];
     }
@@ -141,6 +160,7 @@ const Create = () => {
     if (audioChunksRef.current.length > 0) {
       const audioBlob = audioChunksRef.current[0];
       setIsProcessing(true);
+      onProcessingChange?.(true);
       setRetryCount(prev => prev + 1);
       toast.info(`Retrying transcription... (Attempt ${retryCount + 1})`);
       await transcribeAudio(audioBlob, true);
@@ -149,6 +169,7 @@ const Create = () => {
 
   const createPresentation = async () => {
     setIsProcessing(true);
+    onProcessingChange?.(true);
     setProcessingError(null);
     
     try {
@@ -169,7 +190,9 @@ const Create = () => {
 
       console.log('Presentation generated successfully:', data);
       setGeneratedPresentation(data);
+      onPresentationGenerated?.(data);
       setIsProcessing(false);
+      onProcessingChange?.(false);
       toast.success("Presentation created successfully!");
     } catch (error) {
       console.error('Error generating presentation:', error);
@@ -177,6 +200,7 @@ const Create = () => {
       setProcessingError(`Error generating presentation: ${errorMessage}`);
       toast.error('Error generating presentation. Please try again.');
       setIsProcessing(false);
+      onProcessingChange?.(false);
     }
   };
 
@@ -203,6 +227,7 @@ const Create = () => {
 
   const deleteAndReRecord = () => {
     setGeneratedPresentation(null);
+    onReset?.();
     resetForm();
     toast.success('Ready to record again');
   };
@@ -219,10 +244,6 @@ const Create = () => {
     setHasRecording(false);
     setRecordingTime(0);
     toast.success('Ready to record again');
-  };
-
-  const handleApiKeyChange = (value: string) => {
-    
   };
 
   const formatTime = (seconds: number) => {
@@ -267,7 +288,7 @@ const Create = () => {
                 size="lg"
               >
                 <Trash2 className="w-5 h-5 mr-2" />
-                Delete & Re-record
+                Delete & Create New
               </Button>
               <Button 
                 onClick={savePresentation} 
@@ -284,10 +305,10 @@ const Create = () => {
     );
   }
 
-  // Recording Complete State - Show only Re-record and Generate Pitch options
-  if (hasRecording && !isProcessing) {
+  // Recording Complete State
+  if (hasRecording && !currentlyProcessing) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8">
         <div className="max-w-3xl mx-auto text-center">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-4 text-foreground">
@@ -354,19 +375,19 @@ const Create = () => {
   }
 
   // Processing State
-  if (isProcessing) {
+  if (currentlyProcessing) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8">
         <div className="max-w-2xl mx-auto text-center">
           <div className="mb-8">
             <div className="w-48 h-48 mx-auto rounded-full flex items-center justify-center bg-primary/10 border-4 border-primary/30 mb-6">
               <Loader2 className="w-16 h-16 text-primary animate-spin" />
             </div>
             <h1 className="text-4xl font-bold mb-4 text-foreground">
-              Processing your recording...
+              Processing your content...
             </h1>
             <p className="text-lg text-muted-foreground mb-2">
-              AI is transcribing your audio
+              AI is working on your presentation
             </p>
             <p className="text-sm text-muted-foreground">
               This usually takes 10-30 seconds. Please wait...
@@ -384,17 +405,8 @@ const Create = () => {
 
   // Main Recording Interface
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
+    <div className="flex items-center justify-center p-8">
       <div className="max-w-2xl mx-auto text-center">
-        <div className="mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">
-            Create Your Presentation
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Record yourself speaking about any topic and let AI transform it into a comprehensive presentation
-          </p>
-        </div>
-
         <div className="relative">
           <div className="relative mb-8">
             <div className={`w-48 h-48 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -404,7 +416,7 @@ const Create = () => {
             }`}>
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={isProcessing}
+                disabled={currentlyProcessing}
                 className={`w-24 h-24 rounded-full transition-all duration-300 ${
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600 text-white'
@@ -432,7 +444,7 @@ const Create = () => {
           </div>
 
           <div className="space-y-4 text-muted-foreground">
-            {!isRecording && !isProcessing && (
+            {!isRecording && !currentlyProcessing && (
               <>
                 <p className="text-lg font-medium">Click to start recording</p>
                 <div className="text-sm space-y-2">
