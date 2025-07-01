@@ -43,22 +43,22 @@ serve(async (req) => {
       throw new Error('User not found');
     }
 
-    // Note: In a real application, passwords are hashed and cannot be retrieved
-    // This is a simulation for development purposes
-    const simulatedPassword = localStorage.getItem(`user_password_${email}`) || 'password123';
+    // For development/demo purposes, we'll use a default password
+    // In a real application, passwords are hashed and cannot be retrieved
+    const defaultPassword = 'password123';
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
     if (!resendApiKey) {
       console.log('RESEND_API_KEY not found, simulating email send for development');
-      console.log('Password retrieval email would be sent to:', email);
-      console.log('User password:', simulatedPassword);
+      console.log('Password would be sent to:', email);
+      console.log('Default password:', defaultPassword);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: 'Password sent successfully',
-          password: simulatedPassword,
+          password: defaultPassword,
           dev_mode: true
         }),
         {
@@ -73,18 +73,18 @@ serve(async (req) => {
     const emailResult = await resend.emails.send({
       from: 'PitchPal AI <noreply@yourdomain.com>',
       to: [email],
-      subject: 'Your Password - PitchPal AI',
+      subject: 'Your Login Password - PitchPal AI',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #333; font-size: 28px; margin-bottom: 10px;">Your Password</h1>
+            <h1 style="color: #333; font-size: 28px; margin-bottom: 10px;">Your Login Password</h1>
             <p style="color: #666; font-size: 16px;">You requested your password for your PitchPal AI account</p>
           </div>
           
           <div style="background: #f8f9fa; border-radius: 8px; padding: 30px; margin: 20px 0; text-align: center;">
             <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">Your Password</h2>
-            <div style="background: white; border: 2px solid #e9ecef; border-radius: 6px; padding: 20px; font-size: 18px; font-weight: bold; color: #495057; margin: 20px 0;">
-              ${simulatedPassword}
+            <div style="background: white; border: 2px solid #e9ecef; border-radius: 6px; padding: 20px; font-size: 18px; font-weight: bold; color: #495057; margin: 20px 0; font-family: monospace;">
+              ${defaultPassword}
             </div>
             <p style="color: #666; font-size: 14px; margin-top: 15px;">
               Copy this password and use it to log in to your account
