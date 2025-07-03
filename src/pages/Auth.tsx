@@ -53,7 +53,7 @@ const Auth = () => {
         if (error) {
           toast.error(error.message);
         } else {
-          toast.success("Check your email to confirm your account!");
+          toast.success("Account created successfully! Please save your password in a safe place - we cannot recover it if you forget it.");
         }
       }
     } catch (error) {
@@ -172,15 +172,6 @@ const Auth = () => {
             </form>
 
             <div className="mt-6 text-center space-y-2">
-              {isLogin && (
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-muted-foreground hover:text-foreground block"
-                >
-                  Forgot your password?
-                </Link>
-              )}
-              
               <Button
                 variant="ghost"
                 onClick={() => setIsLogin(!isLogin)}
