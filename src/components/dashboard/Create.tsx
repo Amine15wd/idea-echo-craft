@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2, RotateCcw, Trash2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import PresentationDisplay from "./PresentationDisplay";
 
 interface CreateProps {
   onPresentationGenerated?: (presentation: any) => void;
@@ -255,53 +256,13 @@ const Create = ({
   // Generated Presentation Display
   if (generatedPresentation) {
     return (
-      <div className="min-h-screen bg-white p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-4 text-gray-900">
-                {generatedPresentation.title}
-              </h1>
-              <p className="text-xl text-blue-600 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                {generatedPresentation.oneLiner}
-              </p>
-            </div>
-            
-            <div className="space-y-6">
-              {generatedPresentation.structure.map((section, index) => (
-                <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                    {section.section}
-                  </h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    {section.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex gap-4 mt-8 justify-center">
-              <Button 
-                onClick={deleteAndReRecord} 
-                variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-50"
-                size="lg"
-              >
-                <Trash2 className="w-5 h-5 mr-2" />
-                Delete & Create New
-              </Button>
-              <Button 
-                onClick={savePresentation} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                size="lg"
-              >
-                <Save className="w-5 h-5 mr-2" />
-                Save to Library
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PresentationDisplay
+        presentation={generatedPresentation}
+        transcript={transcript}
+        recordingTime={recordingTime}
+        onDelete={deleteAndReRecord}
+        onSave={savePresentation}
+      />
     );
   }
 

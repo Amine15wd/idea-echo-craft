@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Type, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import PresentationDisplay from "./PresentationDisplay";
 
 interface TextToSpeechProps {
   onPresentationGenerated: (presentation: any) => void;
@@ -17,6 +18,7 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
   const [text, setText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatedPresentation, setGeneratedPresentation] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +49,7 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
       }
 
       console.log('Presentation generated successfully:', data);
+      setGeneratedPresentation(data);
       onPresentationGenerated(data);
       toast.success("Presentation created successfully!");
     } catch (error) {
@@ -59,6 +62,41 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
       onProcessingChange(false);
     }
   };
+
+  // Show presentation display if generated
+  if (generatedPresentation) {
+    return (
+      <PresentationDisplay
+        presentation={generatedPresentation}
+        transcript={text}
+        recordingTime={0} // Text input doesn't have recording time
+        onDelete={() => {
+          setGeneratedPresentation(null);
+          setText("");
+          toast.success('Ready to create a new presentation');
+        }}
+        onSave={() => {
+          const presentationData = {
+            id: Date.now(),
+            title: generatedPresentation.title,
+            oneLiner: generatedPresentation.oneLiner,
+            transcript: text,
+            structure: generatedPresentation.structure,
+            createdAt: new Date().toISOString().split('T')[0],
+            duration: "Text input"
+          };
+          
+          const existingPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');
+          existingPresentations.unshift(presentationData);
+          localStorage.setItem('pitches', JSON.stringify(existingPresentations));
+          
+          toast.success('Presentation saved to library!');
+          setGeneratedPresentation(null);
+          setText("");
+        }}
+      />
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
