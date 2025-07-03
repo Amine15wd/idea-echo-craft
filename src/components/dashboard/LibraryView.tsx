@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Mic, Save, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Edit, Trash2, Mic, Save, X, Download, Sun, Moon, FileText, Presentation } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import PresentationDisplay from "./PresentationDisplay";
 
 interface Presentation {
   id: number;
@@ -24,6 +28,8 @@ const LibraryView = () => {
   const [presentations, setPresentations] = useState<Presentation[]>([]);
   const [editingPresentation, setEditingPresentation] = useState<Presentation | null>(null);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [selectedPresentation, setSelectedPresentation] = useState<Presentation | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     const savedPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');
@@ -79,6 +85,112 @@ const LibraryView = () => {
     });
   };
 
+  const handleDownloadPDF = async (presentation: Presentation) => {
+    try {
+      // Create a temporary div with the presentation content
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.backgroundColor = isDarkMode ? '#1a1a1a' : '#ffffff';
+      tempDiv.style.color = isDarkMode ? '#ffffff' : '#000000';
+      tempDiv.style.padding = '40px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      
+      // Build HTML content
+      let htmlContent = `
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="font-size: 28px; margin-bottom: 20px; color: ${isDarkMode ? '#3b82f6' : '#1e40af'};">
+            ${presentation.title || 'Untitled Presentation'}
+          </h1>
+          <p style="font-size: 18px; font-style: italic; margin-bottom: 20px;">
+            ${presentation.oneLiner}
+          </p>
+          <p style="font-size: 14px; color: ${isDarkMode ? '#9ca3af' : '#6b7280'};">
+            Created: ${presentation.createdAt} | Duration: ${presentation.duration}
+          </p>
+        </div>
+      `;
+      
+      if (presentation.structure) {
+        presentation.structure.forEach((section, index) => {
+          htmlContent += `
+            <div style="margin-bottom: 30px; page-break-inside: avoid;">
+              <h2 style="font-size: 20px; margin-bottom: 15px; color: ${isDarkMode ? '#10b981' : '#059669'}; border-bottom: 2px solid ${isDarkMode ? '#10b981' : '#059669'}; padding-bottom: 5px;">
+                ${index + 1}. ${section.section}
+              </h2>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                ${section.content}
+              </p>
+            </div>
+          `;
+        });
+      }
+      
+      tempDiv.innerHTML = htmlContent;
+      document.body.appendChild(tempDiv);
+      
+      // Convert to canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff'
+      });
+      
+      // Remove temporary div
+      document.body.removeChild(tempDiv);
+      
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`${presentation.title || 'presentation'}.pdf`);
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleViewPresentation = (presentation: Presentation) => {
+    setSelectedPresentation(presentation);
+  };
+
+  // Show presentation display if a presentation is selected
+  if (selectedPresentation) {
+    return (
+      <div className={isDarkMode ? 'dark' : ''}>
+        <PresentationDisplay
+          presentation={{
+            title: selectedPresentation.title,
+            oneLiner: selectedPresentation.oneLiner,
+            structure: selectedPresentation.structure || []
+          }}
+          transcript={selectedPresentation.transcript || ''}
+          recordingTime={0}
+          onDelete={() => setSelectedPresentation(null)}
+          onSave={() => setSelectedPresentation(null)}
+        />
+      </div>
+    );
+  }
+
   if (presentations.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 flex items-center justify-center p-8">
@@ -86,8 +198,8 @@ const LibraryView = () => {
           <div className="w-24 h-24 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center">
             <Mic className="w-12 h-12 text-primary" />
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-foreground">No presentations yet</h3>
-          <p className="text-muted-foreground mb-6">Create your first presentation to get started</p>
+          <h3 className="text-xl font-semibold mb-2 text-foreground">No presentations yet 📝</h3>
+          <p className="text-muted-foreground mb-6">Create your first presentation to get started ✨</p>
         </div>
       </div>
     );
@@ -95,33 +207,62 @@ const LibraryView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Your Presentation Library</h1>
-          <p className="text-muted-foreground">Manage and refine your AI-generated presentations</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 text-foreground">📚 Your Presentation Library</h1>
+            <p className="text-muted-foreground">Manage and refine your AI-generated presentations ✨</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Sun className="w-4 h-4" />
+            <Switch
+              checked={isDarkMode}
+              onCheckedChange={setIsDarkMode}
+            />
+            <Moon className="w-4 h-4" />
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {presentations.map((presentation) => (
+          {presentations.map((presentation, index) => {
+            const emojiIndex = index % 8;
+            const emojis = ['🎯', '💡', '🚀', '⭐', '🎨', '📊', '🔥', '✨'];
+            const emoji = emojis[emojiIndex];
+            
+            return (
             <div
               key={presentation.id}
-              className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200"
+              className="bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-xl p-6 hover:shadow-xl hover:bg-white transition-all duration-300 hover:scale-[1.02]"
             >
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {presentation.title || presentation.oneLiner}
-                </h3>
-                <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded text-center">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">{emoji}</span>
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
+                    {presentation.title || presentation.oneLiner}
+                  </h3>
+                </div>
+                <p className="text-sm text-blue-600 bg-blue-50/80 p-3 rounded-lg text-center border border-blue-100">
                   {presentation.oneLiner}
                 </p>
               </div>
               
-              <div className="text-xs text-gray-500 mb-4 space-y-1">
-                <div>Created: {presentation.createdAt}</div>
-                {presentation.duration && <div>Duration: {presentation.duration}</div>}
+              <div className="text-xs text-gray-500 mb-4 space-y-1 bg-gray-50/50 p-2 rounded">
+                <div>📅 Created: {presentation.createdAt}</div>
+                {presentation.duration && <div>⏱️ Duration: {presentation.duration}</div>}
+                {presentation.structure && <div>📑 Sections: {presentation.structure.length}</div>}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleViewPresentation(presentation)}
+                  className="flex-1 text-green-600 border-green-200 hover:bg-green-50"
+                >
+                  <Presentation className="w-4 h-4 mr-1" />
+                  View
+                </Button>
+                
                 <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
                   <SheetTrigger asChild>
                     <Button
@@ -205,6 +346,15 @@ const LibraryView = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => handleDownloadPDF(presentation)}
+                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleDelete(presentation.id)}
                   className="text-red-600 border-red-200 hover:bg-red-50"
                 >
@@ -212,7 +362,8 @@ const LibraryView = () => {
                 </Button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
     </div>
