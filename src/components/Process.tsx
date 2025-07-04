@@ -5,8 +5,8 @@ const Process = () => {
   const steps = [
     {
       icon: Mic,
-      title: "Record",
-      description: "Speak naturally about your startup idea for 2-5 minutes",
+      title: "Input",
+      description: "Record your voice or type your startup idea in 2-5 minutes",
       color: "text-primary"
     },
     {

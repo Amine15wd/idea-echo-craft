@@ -26,14 +26,14 @@ const CTA = () => {
           <span className="text-primary font-semibold"> compelling pitches</span> that investors love.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4">
           <Button 
             size="lg" 
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-12 py-6 text-xl font-semibold rounded-xl transition-all duration-300 hover:scale-105 animate-pulse-glow group"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-semibold rounded-xl transition-all duration-300 hover:scale-105 animate-pulse-glow group w-full sm:w-auto"
           >
-            <Mic className="w-6 h-6 mr-3 group-hover:animate-pulse" />
-            Start Your First Pitch
-            <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
+            <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 mr-2 sm:mr-3 group-hover:animate-pulse" />
+            Build Your First Pitch
+            <ArrowRight className="w-5 sm:w-6 h-5 sm:h-6 ml-2 sm:ml-3 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
 
