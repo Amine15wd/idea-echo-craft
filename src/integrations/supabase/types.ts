@@ -36,6 +36,42 @@ export type Database = {
         }
         Relationships: []
       }
+      presentations: {
+        Row: {
+          created_at: string
+          duration: string | null
+          id: string
+          one_liner: string
+          structure: Json | null
+          title: string
+          transcript: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          one_liner: string
+          structure?: Json | null
+          title: string
+          transcript?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          one_liner?: string
+          structure?: Json | null
+          title?: string
+          transcript?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

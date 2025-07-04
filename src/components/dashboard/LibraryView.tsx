@@ -10,9 +10,11 @@ import { toast } from "sonner";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import PresentationDisplay from "./PresentationDisplay";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Presentation {
-  id: number;
+  id: string;
   title: string;
   oneLiner: string;
   createdAt: string;
@@ -30,17 +32,58 @@ const LibraryView = () => {
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [selectedPresentation, setSelectedPresentation] = useState<Presentation | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showDarkModeToggle, setShowDarkModeToggle] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
-    const savedPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');
-    setPresentations(savedPresentations);
-  }, []);
+    fetchPresentations();
+  }, [user]);
 
-  const handleDelete = (presentationId: number) => {
-    const updatedPresentations = presentations.filter(p => p.id !== presentationId);
-    setPresentations(updatedPresentations);
-    localStorage.setItem('pitches', JSON.stringify(updatedPresentations));
-    toast.success("Presentation deleted");
+  const fetchPresentations = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('presentations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedPresentations = data.map(p => ({
+        id: p.id,
+        title: p.title,
+        oneLiner: p.one_liner,
+        createdAt: new Date(p.created_at).toLocaleDateString(),
+        duration: p.duration || '',
+        transcript: p.transcript || '',
+        structure: p.structure as any
+      }));
+
+      setPresentations(formattedPresentations);
+    } catch (error) {
+      console.error('Error fetching presentations:', error);
+      toast.error('Failed to load presentations');
+    }
+  };
+
+  const handleDelete = async (presentationId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('presentations')
+        .delete()
+        .eq('id', presentationId);
+
+      if (error) throw error;
+
+      setPresentations(prev => prev.filter(p => p.id !== presentationId));
+      toast.success("Presentation deleted");
+    } catch (error) {
+      console.error('Error deleting presentation:', error);
+      toast.error('Failed to delete presentation');
+    }
   };
 
   const handleEdit = (presentation: Presentation) => {
@@ -48,18 +91,33 @@ const LibraryView = () => {
     setIsEditSheetOpen(true);
   };
 
-  const handleSaveEdit = () => {
-    if (!editingPresentation) return;
+  const handleSaveEdit = async () => {
+    if (!editingPresentation || !user) return;
 
-    const updatedPresentations = presentations.map(p => 
-      p.id === editingPresentation.id ? editingPresentation : p
-    );
-    
-    setPresentations(updatedPresentations);
-    localStorage.setItem('pitches', JSON.stringify(updatedPresentations));
-    setIsEditSheetOpen(false);
-    setEditingPresentation(null);
-    toast.success("Presentation updated successfully");
+    try {
+      const { error } = await supabase
+        .from('presentations')
+        .update({
+          title: editingPresentation.title,
+          one_liner: editingPresentation.oneLiner,
+          structure: editingPresentation.structure
+        })
+        .eq('id', editingPresentation.id);
+
+      if (error) throw error;
+
+      const updatedPresentations = presentations.map(p => 
+        p.id === editingPresentation.id ? editingPresentation : p
+      );
+      
+      setPresentations(updatedPresentations);
+      setIsEditSheetOpen(false);
+      setEditingPresentation(null);
+      toast.success("Presentation updated successfully");
+    } catch (error) {
+      console.error('Error updating presentation:', error);
+      toast.error('Failed to update presentation');
+    }
   };
 
   const updateEditingPresentation = (field: string, value: string) => {
@@ -208,18 +266,10 @@ const LibraryView = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2 text-foreground">📚 Your Presentation Library</h1>
             <p className="text-muted-foreground">Manage and refine your AI-generated presentations ✨</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Sun className="w-4 h-4" />
-            <Switch
-              checked={isDarkMode}
-              onCheckedChange={setIsDarkMode}
-            />
-            <Moon className="w-4 h-4" />
           </div>
         </div>
 
@@ -343,14 +393,40 @@ const LibraryView = () => {
                   </SheetContent>
                 </Sheet>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownloadPDF(presentation)}
-                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-auto">
+                    <SheetHeader>
+                      <SheetTitle>Download PDF Options</SheetTitle>
+                    </SheetHeader>
+                    <div className="flex items-center justify-center gap-6 py-6">
+                      <div className="flex items-center gap-3">
+                        <Sun className="w-4 h-4" />
+                        <Switch
+                          checked={isDarkMode}
+                          onCheckedChange={setIsDarkMode}
+                        />
+                        <Moon className="w-4 h-4" />
+                        <span className="text-sm">{isDarkMode ? 'Dark' : 'Light'} Mode</span>
+                      </div>
+                      <Button
+                        onClick={() => handleDownloadPDF(presentation)}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
 
                 <Button
                   variant="outline"

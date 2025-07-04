@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2, RotateCcw, Trash2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import PresentationDisplay from "./PresentationDisplay";
 
 interface CreateProps {
@@ -205,25 +206,31 @@ const Create = ({
     }
   };
 
-  const savePresentation = () => {
-    if (!generatedPresentation) return;
+  const { user } = useAuth();
+
+  const savePresentation = async () => {
+    if (!generatedPresentation || !user) return;
     
-    const presentationData = {
-      id: Date.now(),
-      title: generatedPresentation.title,
-      oneLiner: generatedPresentation.oneLiner,
-      transcript,
-      structure: generatedPresentation.structure,
-      createdAt: new Date().toISOString().split('T')[0],
-      duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
-    };
-    
-    const existingPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');
-    existingPresentations.unshift(presentationData);
-    localStorage.setItem('pitches', JSON.stringify(existingPresentations));
-    
-    toast.success('Presentation saved to library!');
-    resetForm();
+    try {
+      const { error } = await supabase
+        .from('presentations')
+        .insert({
+          user_id: user.id,
+          title: generatedPresentation.title,
+          one_liner: generatedPresentation.oneLiner,
+          transcript,
+          structure: generatedPresentation.structure,
+          duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
+        });
+
+      if (error) throw error;
+
+      toast.success('Presentation saved to library!');
+      resetForm();
+    } catch (error) {
+      console.error('Error saving presentation:', error);
+      toast.error('Failed to save presentation');
+    }
   };
 
   const deleteAndReRecord = () => {
