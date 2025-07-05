@@ -75,7 +75,7 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
           setText("");
           toast.success('Ready to create a new presentation');
         }}
-        onSave={() => {
+        onSave={(audioUrl) => {
           const presentationData = {
             id: Date.now(),
             title: generatedPresentation.title,
@@ -83,7 +83,8 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
             transcript: text,
             structure: generatedPresentation.structure,
             createdAt: new Date().toISOString().split('T')[0],
-            duration: "Text input"
+            duration: "Text input",
+            audioUrl: audioUrl
           };
           
           const existingPresentations = JSON.parse(localStorage.getItem('pitches') || '[]');

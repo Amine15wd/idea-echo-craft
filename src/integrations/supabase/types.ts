@@ -38,6 +38,7 @@ export type Database = {
       }
       presentations: {
         Row: {
+          audio_url: string | null
           created_at: string
           duration: string | null
           id: string
@@ -49,6 +50,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          audio_url?: string | null
           created_at?: string
           duration?: string | null
           id?: string
@@ -60,6 +62,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          audio_url?: string | null
           created_at?: string
           duration?: string | null
           id?: string

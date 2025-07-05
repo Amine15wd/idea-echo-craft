@@ -20,6 +20,7 @@ interface Presentation {
   createdAt: string;
   duration: string;
   transcript?: string;
+  audioUrl?: string;  // Add audio URL field
   structure?: {
     section: string;
     content: string;
@@ -57,6 +58,7 @@ const LibraryView = () => {
         createdAt: new Date(p.created_at).toLocaleDateString(),
         duration: p.duration || '',
         transcript: p.transcript || '',
+        audioUrl: p.audio_url || '',  // Include audio URL
         structure: p.structure as any
       }));
 
@@ -242,6 +244,7 @@ const LibraryView = () => {
           }}
           transcript={selectedPresentation.transcript || ''}
           recordingTime={0}
+          initialAudioUrl={selectedPresentation.audioUrl}  // Pass stored audio URL
           onDelete={() => setSelectedPresentation(null)}
           onSave={() => setSelectedPresentation(null)}
         />
@@ -300,6 +303,7 @@ const LibraryView = () => {
                 <div>📅 Created: {presentation.createdAt}</div>
                 {presentation.duration && <div>⏱️ Duration: {presentation.duration}</div>}
                 {presentation.structure && <div>📑 Sections: {presentation.structure.length}</div>}
+                {presentation.audioUrl && <div>🎙️ Audio available</div>}
               </div>
 
               <div className="flex gap-2 flex-wrap">

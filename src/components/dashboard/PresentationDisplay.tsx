@@ -17,19 +17,21 @@ interface PresentationDisplayProps {
   };
   transcript: string;
   recordingTime: number;
+  initialAudioUrl?: string;  // Add optional initial audio URL
   onDelete: () => void;
-  onSave: () => void;
+  onSave: (audioUrl?: string | null) => void;
 }
 
 const PresentationDisplay = ({ 
   presentation, 
   transcript, 
   recordingTime, 
+  initialAudioUrl,
   onDelete, 
   onSave 
 }: PresentationDisplayProps) => {
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(initialAudioUrl || null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -48,8 +50,7 @@ const PresentationDisplay = ({
     return fullText;
   };
 
-  const generateAudioNarration = async () => {
-    setIsGeneratingAudio(true);
+  const generateAudioNarration = async (): Promise<string | null> => {
     try {
       const fullText = getFullPresentationText();
       
@@ -80,12 +81,31 @@ const PresentationDisplay = ({
       
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
-      toast.success("🎙️ Audio narration generated successfully!");
+      return url;
     } catch (error) {
       console.error('Error generating audio:', error);
       toast.error('Failed to generate audio narration. Please try again.');
+      return null;
+    }
+  };
+
+  const handleSaveWithAudio = async () => {
+    setIsSaving(true);
+    toast.info("💾 Generating audio and saving presentation...");
+    
+    try {
+      // Generate audio first
+      const generatedAudioUrl = await generateAudioNarration();
+      
+      // Call original save function
+      onSave(generatedAudioUrl);
+      
+      toast.success("🎉 Presentation saved with audio!");
+    } catch (error) {
+      console.error('Error saving with audio:', error);
+      toast.error('Failed to save presentation with audio');
     } finally {
-      setIsGeneratingAudio(false);
+      setIsSaving(false);
     }
   };
 
@@ -141,31 +161,13 @@ const PresentationDisplay = ({
               </p>
             </div>
 
-            {/* Audio Controls */}
+            {/* Audio Status */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                 🎤 {formatTime(recordingTime)} recorded
               </Badge>
               
-              {!audioUrl ? (
-                <Button
-                  onClick={generateAudioNarration}
-                  disabled={isGeneratingAudio}
-                  className="bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 text-white shadow-lg"
-                >
-                  {isGeneratingAudio ? (
-                    <>
-                      <Volume2 className="w-5 h-5 mr-2 animate-spin" />
-                      🎙️ Generating Audio...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 mr-2" />
-                      🎙️ Generate Voice Narration
-                    </>
-                  )}
-                </Button>
-              ) : (
+              {audioUrl && (
                 <div className="flex items-center gap-3">
                   <Button
                     onClick={togglePlayback}
@@ -194,6 +196,10 @@ const PresentationDisplay = ({
                   </Button>
                 </div>
               )}
+              
+              <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
+                🎙️ Audio will be generated when saved
+              </Badge>
             </div>
           </div>
         </div>
@@ -241,12 +247,13 @@ const PresentationDisplay = ({
           </Button>
           
           <Button 
-            onClick={onSave} 
+            onClick={handleSaveWithAudio} 
+            disabled={isSaving}
             className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-xl"
             size="lg"
           >
             <Save className="w-5 h-5 mr-2" />
-            💾 Save to Library
+            {isSaving ? "🎙️ Generating Audio..." : "💾 Save to Library"}
           </Button>
         </div>
 
