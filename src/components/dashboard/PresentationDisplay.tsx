@@ -53,10 +53,14 @@ const PresentationDisplay = ({
     try {
       const fullText = getFullPresentationText();
       
+      // Detect if content contains Arabic to choose appropriate voice
+      const containsArabic = /[\u0600-\u06FF]/.test(fullText);
+      const voiceId = containsArabic ? '9BWtsMINqrJLrRacOk9x' : '9BWtsMINqrJLrRacOk9x'; // Aria voice works well for both languages
+      
       const { data, error } = await supabase.functions.invoke('text-to-speech', {
         body: { 
           text: fullText,
-          voice: 'alloy' // Professional, clear voice
+          voice: voiceId // ElevenLabs voice ID
         }
       });
 
