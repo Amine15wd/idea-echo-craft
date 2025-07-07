@@ -80,6 +80,7 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
             id: Date.now(),
             title: generatedPresentation.title,
             oneLiner: generatedPresentation.oneLiner,
+            language: generatedPresentation.language,
             transcript: text,
             structure: generatedPresentation.structure,
             createdAt: new Date().toISOString().split('T')[0],

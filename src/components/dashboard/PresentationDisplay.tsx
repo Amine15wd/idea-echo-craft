@@ -2,14 +2,17 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Save, Sparkles, Star, Zap } from "lucide-react";
+import { Trash2, Save, Sparkles, Star, Zap, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PresentationDisplayProps {
   presentation: {
     title: string;
     oneLiner: string;
+    language?: string;
     structure: {
       section: string;
       content: string;
@@ -29,11 +32,73 @@ const PresentationDisplay = ({
   onSave 
 }: PresentationDisplayProps) => {
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const presentationRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const downloadPDF = async () => {
+    if (!presentationRef.current) return;
+    
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(presentationRef.current, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const filename = `${presentation.title.replace(/[^\w\s]/gi, '').substring(0, 30)}.pdf`;
+      pdf.save(filename);
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const formatContent = (content: string) => {
+    // Split content by bullet points and format them nicely
+    const lines = content.split('\n').filter(line => line.trim());
+    return lines.map((line, index) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+        return (
+          <div key={index} className="flex items-start gap-3 mb-3">
+            <div className="w-2 h-2 rounded-full bg-primary mt-3 flex-shrink-0" />
+            <span className="text-foreground/90 leading-relaxed">{trimmedLine.substring(1).trim()}</span>
+          </div>
+        );
+      }
+      return (
+        <p key={index} className="text-foreground/90 leading-relaxed mb-3">{trimmedLine}</p>
+      );
+    });
   };
 
 
@@ -45,7 +110,7 @@ const PresentationDisplay = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto" ref={presentationRef}>
         {/* Header Section */}
         <div className="text-center mb-8 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 blur-3xl rounded-full" />
@@ -70,6 +135,11 @@ const PresentationDisplay = ({
               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                 🎤 {formatTime(recordingTime)} recorded
               </Badge>
+              {presentation.language && (
+                <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
+                  🌍 {presentation.language.toUpperCase()}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -86,7 +156,7 @@ const PresentationDisplay = ({
               <CardHeader className="relative z-10">
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-2xl shadow-lg">
-                    {getSectionEmoji(index)}
+                    {section.section.match(/[\u{1F300}-\u{1F9FF}]/u)?.[0] || getSectionEmoji(index)}
                   </div>
                   <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                     {section.section}
@@ -96,16 +166,16 @@ const PresentationDisplay = ({
               </CardHeader>
               
               <CardContent className="relative z-10">
-                <p className="text-lg text-foreground/90 leading-relaxed">
-                  {section.content}
-                </p>
+                <div className="text-lg">
+                  {formatContent(section.content)}
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-6 justify-center">
+        <div className="flex flex-wrap gap-4 justify-center">
           <Button 
             onClick={onDelete} 
             variant="outline" 
@@ -116,6 +186,26 @@ const PresentationDisplay = ({
             🗑️ Delete & Create New
           </Button>
           
+          <Button 
+            onClick={downloadPDF}
+            disabled={isDownloading}
+            variant="outline" 
+            className="border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 shadow-lg"
+            size="lg"
+          >
+            {isDownloading ? (
+              <>
+                <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5 mr-2" />
+                📄 Download PDF
+              </>
+            )}
+          </Button>
+
           <Button 
             onClick={() => onSave()}
             disabled={isSaving}

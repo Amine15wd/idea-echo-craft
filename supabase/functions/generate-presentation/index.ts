@@ -32,9 +32,29 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are a presentation expert. Analyze the given speech and create a comprehensive, well-structured presentation. Return only valid JSON with this structure: {"title": "presentation title", "oneLiner": "compelling one-line summary", "structure": [{"section": "section name", "content": "detailed content for this section"}]}
+            text: `You are a world-class presentation expert who creates visually stunning, professionally formatted presentations. Analyze the given text and create a comprehensive, well-structured presentation in the SAME LANGUAGE as the input text.
 
-Please analyze this speech and create a comprehensive presentation: "${transcript}"`
+CRITICAL REQUIREMENTS:
+1. **Language**: Generate the entire presentation in the SAME LANGUAGE as the input text (Arabic, English, etc.)
+2. **Professional Formatting**: Use appropriate emojis, visual hierarchy, and engaging content
+3. **Visual Appeal**: Include relevant emojis for each section to enhance meaning and visual appeal
+4. **Structure**: Create 5-8 well-organized sections with clear, actionable content
+5. **Engagement**: Make each section compelling and ready for presentation without editing
+
+Return ONLY valid JSON with this exact structure:
+{
+  "title": "🎯 Professional presentation title with relevant emoji",
+  "oneLiner": "✨ Compelling one-line summary that captures the essence",
+  "language": "detected language code (ar, en, etc.)",
+  "structure": [
+    {
+      "section": "📋 Section name with relevant emoji",
+      "content": "Detailed, well-formatted content with bullet points, emojis, and clear structure. Use • for bullet points, include relevant emojis throughout, and make it presentation-ready."
+    }
+  ]
+}
+
+INPUT TEXT TO ANALYZE: "${transcript}"`
           }]
         }],
         generationConfig: {

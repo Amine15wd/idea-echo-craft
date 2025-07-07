@@ -32,6 +32,7 @@ const Create = ({
   const [generatedPresentation, setGeneratedPresentation] = useState<{
     title: string;
     oneLiner: string;
+    language?: string;
     structure: {
       section: string;
       content: string;
