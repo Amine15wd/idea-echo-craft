@@ -208,7 +208,7 @@ const Create = ({
 
   const { user } = useAuth();
 
-  const savePresentation = async (audioUrl?: string | null) => {
+  const savePresentation = async () => {
     if (!generatedPresentation || !user) return;
     
     try {
@@ -220,8 +220,7 @@ const Create = ({
           one_liner: generatedPresentation.oneLiner,
           transcript,
           structure: generatedPresentation.structure,
-          duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`,
-          audio_url: audioUrl
+          duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
         });
 
       if (error) throw error;

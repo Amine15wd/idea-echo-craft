@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Save, Play, Pause, Volume2, Download, Sparkles, Star, Zap } from "lucide-react";
+import { Trash2, Save, Sparkles, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,23 +17,18 @@ interface PresentationDisplayProps {
   };
   transcript: string;
   recordingTime: number;
-  initialAudioUrl?: string;  // Add optional initial audio URL
   onDelete: () => void;
-  onSave: (audioUrl?: string | null) => void;
+  onSave: () => void;
 }
 
 const PresentationDisplay = ({ 
   presentation, 
   transcript, 
   recordingTime, 
-  initialAudioUrl,
   onDelete, 
   onSave 
 }: PresentationDisplayProps) => {
   const [isSaving, setIsSaving] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(initialAudioUrl || null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -41,97 +36,6 @@ const PresentationDisplay = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Create full presentation text for narration
-  const getFullPresentationText = () => {
-    let fullText = `${presentation.title}. ${presentation.oneLiner}. `;
-    presentation.structure.forEach((section, index) => {
-      fullText += `Section ${index + 1}: ${section.section}. ${section.content}. `;
-    });
-    return fullText;
-  };
-
-  const generateAudioNarration = async (): Promise<string | null> => {
-    try {
-      const fullText = getFullPresentationText();
-      
-      // Detect if content contains Arabic to choose appropriate voice
-      const containsArabic = /[\u0600-\u06FF]/.test(fullText);
-      const voiceId = containsArabic ? '9BWtsMINqrJLrRacOk9x' : '9BWtsMINqrJLrRacOk9x'; // Aria voice works well for both languages
-      
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { 
-          text: fullText,
-          voice: voiceId // ElevenLabs voice ID
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to generate audio');
-      }
-
-      if (!data || !data.audioContent) {
-        throw new Error('No audio data received');
-      }
-
-      // Convert base64 to blob and create URL
-      const audioBlob = new Blob(
-        [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
-        { type: 'audio/mpeg' }
-      );
-      
-      const url = URL.createObjectURL(audioBlob);
-      setAudioUrl(url);
-      return url;
-    } catch (error) {
-      console.error('Error generating audio:', error);
-      toast.error('Failed to generate audio narration. Please try again.');
-      return null;
-    }
-  };
-
-  const handleSaveWithAudio = async () => {
-    setIsSaving(true);
-    toast.info("💾 Generating audio and saving presentation...");
-    
-    try {
-      // Generate audio first
-      const generatedAudioUrl = await generateAudioNarration();
-      
-      // Call original save function
-      onSave(generatedAudioUrl);
-      
-      toast.success("🎉 Presentation saved with audio!");
-    } catch (error) {
-      console.error('Error saving with audio:', error);
-      toast.error('Failed to save presentation with audio');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const togglePlayback = () => {
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const downloadAudio = () => {
-    if (!audioUrl) return;
-    
-    const a = document.createElement('a');
-    a.href = audioUrl;
-    a.download = `${presentation.title.replace(/[^a-z0-9]/gi, '_')}_narration.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success("🎵 Audio downloaded successfully!");
-  };
 
   // Add emojis to section titles
   const getSectionEmoji = (index: number) => {
@@ -161,44 +65,10 @@ const PresentationDisplay = ({
               </p>
             </div>
 
-            {/* Audio Status */}
+            {/* Recording Status */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                 🎤 {formatTime(recordingTime)} recorded
-              </Badge>
-              
-              {audioUrl && (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={togglePlayback}
-                    className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
-                  >
-                    {isPlaying ? (
-                      <>
-                        <Pause className="w-5 h-5 mr-2" />
-                        🎵 Pause
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-5 h-5 mr-2" />
-                        🎵 Play Narration
-                      </>
-                    )}
-                  </Button>
-                  
-                  <Button
-                    onClick={downloadAudio}
-                    variant="outline"
-                    className="border-primary/30 hover:bg-primary/10"
-                  >
-                    <Download className="w-5 h-5 mr-2" />
-                    💾 Download Audio
-                  </Button>
-                </div>
-              )}
-              
-              <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
-                🎙️ Audio will be generated when saved
               </Badge>
             </div>
           </div>
@@ -247,27 +117,16 @@ const PresentationDisplay = ({
           </Button>
           
           <Button 
-            onClick={handleSaveWithAudio} 
+            onClick={() => onSave()}
             disabled={isSaving}
             className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-xl"
             size="lg"
           >
             <Save className="w-5 h-5 mr-2" />
-            {isSaving ? "🎙️ Generating Audio..." : "💾 Save to Library"}
+            💾 Save to Library
           </Button>
         </div>
 
-        {/* Hidden Audio Element */}
-        {audioUrl && (
-          <audio
-            ref={audioRef}
-            src={audioUrl}
-            onEnded={() => setIsPlaying(false)}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            className="hidden"
-          />
-        )}
       </div>
     </div>
   );
