@@ -2,11 +2,8 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Save, Sparkles, Star, Zap, Download, FileText } from "lucide-react";
+import { Trash2, Save, Sparkles, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface PresentationDisplayProps {
   presentation: {
@@ -32,54 +29,12 @@ const PresentationDisplay = ({
   onSave 
 }: PresentationDisplayProps) => {
   const [isSaving, setIsSaving] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const presentationRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const downloadPDF = async () => {
-    if (!presentationRef.current) return;
-    
-    setIsDownloading(true);
-    try {
-      const canvas = await html2canvas(presentationRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      const filename = `${presentation.title.replace(/[^\w\s]/gi, '').substring(0, 30)}.pdf`;
-      pdf.save(filename);
-      toast.success('PDF downloaded successfully!');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
-    } finally {
-      setIsDownloading(false);
-    }
   };
 
   const formatContent = (content: string) => {
@@ -184,26 +139,6 @@ const PresentationDisplay = ({
           >
             <Trash2 className="w-5 h-5 mr-2" />
             🗑️ Delete & Create New
-          </Button>
-          
-          <Button 
-            onClick={downloadPDF}
-            disabled={isDownloading}
-            variant="outline" 
-            className="border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 shadow-lg"
-            size="lg"
-          >
-            {isDownloading ? (
-              <>
-                <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-                Generating PDF...
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5 mr-2" />
-                📄 Download PDF
-              </>
-            )}
           </Button>
 
           <Button 
