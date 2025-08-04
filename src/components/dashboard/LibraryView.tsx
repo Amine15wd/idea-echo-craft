@@ -264,16 +264,16 @@ const LibraryView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-950/10 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2 text-foreground">📚 Your Presentation Library</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-foreground">📚 Your Presentation Library</h1>
             <p className="text-muted-foreground">Manage and refine your AI-generated presentations ✨</p>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {presentations.map((presentation, index) => {
             const emojiIndex = index % 8;
             const emojis = ['🎯', '💡', '🚀', '⭐', '🎨', '📊', '🔥', '✨'];
@@ -282,12 +282,12 @@ const LibraryView = () => {
             return (
             <div
               key={presentation.id}
-              className="bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-xl p-6 hover:shadow-xl hover:bg-white transition-all duration-300 hover:scale-[1.02]"
+              className="bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 sm:p-6 hover:shadow-xl hover:bg-white transition-all duration-300 hover:scale-[1.02]"
             >
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-2xl">{emoji}</span>
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
                     {presentation.title || presentation.oneLiner}
                   </h3>
                 </div>
@@ -302,7 +302,7 @@ const LibraryView = () => {
                 {presentation.structure && <div>📑 Sections: {presentation.structure.length}</div>}
               </div>
 
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-1 sm:gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"

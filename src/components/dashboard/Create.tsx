@@ -374,11 +374,11 @@ const Create = ({
 
   // Main Recording Interface
   return (
-    <div className="flex items-center justify-center p-8">
+    <div className="flex items-center justify-center p-4 sm:p-8">
       <div className="max-w-2xl mx-auto text-center">
         <div className="relative">
           <div className="relative mb-8">
-            <div className={`w-48 h-48 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${
+            <div className={`w-32 h-32 sm:w-48 sm:h-48 mx-auto rounded-full flex items-center justify-center transition-all duration-300 ${
               isRecording 
                 ? 'bg-red-500/20 border-4 border-red-500 animate-pulse' 
                 : 'bg-primary/10 border-4 border-primary/30 hover:border-primary/50 hover:bg-primary/20'
@@ -386,16 +386,16 @@ const Create = ({
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={currentlyProcessing}
-                className={`w-24 h-24 rounded-full transition-all duration-300 ${
+                className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full transition-all duration-300 ${
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-primary hover:bg-primary/90 text-primary-foreground'
                 }`}
               >
                 {isRecording ? (
-                  <Square className="w-8 h-8" />
+                  <Square className="w-6 h-6 sm:w-8 sm:h-8" />
                 ) : (
-                  <Mic className="w-8 h-8" />
+                  <Mic className="w-6 h-6 sm:w-8 sm:h-8" />
                 )}
               </Button>
             </div>

@@ -109,23 +109,23 @@ const PresentationDisplay = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto" ref={presentationRef}>
         {/* Header Section */}
         <div className="text-center mb-8 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 blur-3xl rounded-full" />
           <div className="relative bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl p-8 shadow-2xl">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-              <h1 className="text-5xl font-bold text-foreground bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4">
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary animate-pulse" />
+              <h1 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-foreground bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent text-center">
                 {presentation.title}
               </h1>
-              <Star className="w-8 h-8 text-accent animate-pulse" />
+              <Star className="w-6 h-6 sm:w-8 sm:h-8 text-accent animate-pulse" />
             </div>
             
             <div className="relative p-6 rounded-xl bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/30 shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl animate-pulse-glow" />
-              <p className="text-2xl text-foreground font-medium relative z-10">
+              <p className="text-lg sm:text-xl lg:text-2xl text-foreground font-medium relative z-10 text-center">
                 ✨ {presentation.oneLiner} ✨
               </p>
             </div>
@@ -154,14 +154,14 @@ const PresentationDisplay = ({
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               
               <CardHeader className="relative z-10">
-                <CardTitle className="flex items-center gap-3 text-2xl">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-2xl shadow-lg">
+                <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl lg:text-2xl">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-xl sm:text-2xl shadow-lg flex-shrink-0">
                     {section.section.match(/[\u{1F300}-\u{1F9FF}]/u)?.[0] || getSectionEmoji(index)}
                   </div>
-                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex-1 min-w-0">
                     {section.section}
                   </span>
-                  <Zap className="w-6 h-6 text-accent ml-auto opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-accent opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 </CardTitle>
               </CardHeader>
               
@@ -175,7 +175,7 @@ const PresentationDisplay = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <Button 
             onClick={onDelete} 
             variant="outline" 
