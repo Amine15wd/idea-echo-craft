@@ -47,6 +47,7 @@ export type Database = {
           duration: string | null
           id: string
           one_liner: string
+          pptx_file_path: string | null
           structure: Json | null
           title: string
           transcript: string | null
@@ -58,6 +59,7 @@ export type Database = {
           duration?: string | null
           id?: string
           one_liner: string
+          pptx_file_path?: string | null
           structure?: Json | null
           title: string
           transcript?: string | null
@@ -69,6 +71,7 @@ export type Database = {
           duration?: string | null
           id?: string
           one_liner?: string
+          pptx_file_path?: string | null
           structure?: Json | null
           title?: string
           transcript?: string | null

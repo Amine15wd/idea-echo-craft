@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Trash2, Mic, Save, X, Download, Sun, Moon, FileText, Presentation } from "lucide-react";
+import { Edit, Trash2, Mic, Save, X, Download, Sun, Moon, FileText, Presentation, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -20,6 +20,7 @@ interface Presentation {
   createdAt: string;
   duration: string;
   transcript?: string;
+  pptxFilePath?: string;
   structure?: {
     section: string;
     content: string;
@@ -57,6 +58,7 @@ const LibraryView = () => {
         createdAt: new Date(p.created_at).toLocaleDateString(),
         duration: p.duration || '',
         transcript: p.transcript || '',
+        pptxFilePath: p.pptx_file_path || '',
         structure: p.structure as any
       }));
 
@@ -223,6 +225,38 @@ const LibraryView = () => {
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleDownloadPPTX = async (presentation: Presentation) => {
+    if (!presentation.pptxFilePath) {
+      toast.error('No PowerPoint file available for this presentation');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .storage
+        .from('presentations-pptx')
+        .createSignedUrl(presentation.pptxFilePath, 3600);
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        const link = document.createElement('a');
+        link.href = data.signedUrl;
+        link.download = `${presentation.title || 'presentation'}.pptx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success('💎 PowerPoint downloaded successfully!');
+      } else {
+        throw new Error('Failed to get download URL');
+      }
+    } catch (error) {
+      console.error('Error downloading PowerPoint:', error);
+      toast.error('Failed to download PowerPoint file');
     }
   };
 
@@ -405,25 +439,38 @@ const LibraryView = () => {
                   </SheetTrigger>
                   <SheetContent side="bottom" className="h-auto">
                     <SheetHeader>
-                      <SheetTitle>Download PDF Options</SheetTitle>
+                      <SheetTitle>Download Options</SheetTitle>
                     </SheetHeader>
-                    <div className="flex items-center justify-center gap-6 py-6">
-                      <div className="flex items-center gap-3">
+                    <div className="space-y-6 py-6">
+                      <div className="flex items-center justify-center gap-3">
                         <Sun className="w-4 h-4" />
                         <Switch
                           checked={isDarkMode}
                           onCheckedChange={setIsDarkMode}
                         />
                         <Moon className="w-4 h-4" />
-                        <span className="text-sm">{isDarkMode ? 'Dark' : 'Light'} Mode</span>
+                        <span className="text-sm">{isDarkMode ? 'Dark' : 'Light'} Mode PDF</span>
                       </div>
-                      <Button
-                        onClick={() => handleDownloadPDF(presentation)}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
-                      </Button>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button
+                          onClick={() => handleDownloadPDF(presentation)}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          📄 Download PDF
+                        </Button>
+                        
+                        <Button
+                          onClick={() => handleDownloadPPTX(presentation)}
+                          disabled={!presentation.pptxFilePath}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                          title={presentation.pptxFilePath ? "Fully editable presentations for PowerPoint" : "PowerPoint file not available"}
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          💎 Download PowerPoint
+                        </Button>
+                      </div>
                     </div>
                   </SheetContent>
                 </Sheet>
