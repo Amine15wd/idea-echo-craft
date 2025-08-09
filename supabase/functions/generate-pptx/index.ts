@@ -84,11 +84,23 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
   const isRTL = detectRTL(presentation.language || 'en');
   const textDirection = isRTL ? 'rtl' : 'ltr';
   
-  // Set presentation properties
+  // Helper function to clean and ensure string content
+  const cleanText = (text: any): string => {
+    if (!text) return '';
+    const str = String(text);
+    // Remove problematic characters that might cause issues with PptxGenJS
+    return str.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+  };
+  
+  // Clean presentation data
+  const cleanTitle = cleanText(presentation.title);
+  const cleanOneLiner = cleanText(presentation.oneLiner);
+  
+  // Set presentation properties with cleaned text
   pptx.author = 'PitchPal AI';
   pptx.company = 'PitchPal AI';
-  pptx.subject = presentation.title;
-  pptx.title = presentation.title;
+  pptx.subject = cleanTitle;
+  pptx.title = cleanTitle;
 
   // Define professional color scheme
   const colors = {
@@ -115,7 +127,7 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
   };
 
   // Title
-  titleSlide.addText(presentation.title, {
+  titleSlide.addText(cleanTitle, {
     x: 0.5,
     y: 2.5,
     w: 9,
@@ -125,15 +137,11 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     color: colors.background,
     bold: true,
     align: 'center',
-    dir: textDirection,
-    animation: {
-      entrance: 'fadeIn',
-      duration: 1000
-    }
+    rtlMode: isRTL
   });
 
   // Subtitle
-  titleSlide.addText(presentation.oneLiner, {
+  titleSlide.addText(cleanOneLiner, {
     x: 0.5,
     y: 4.2,
     w: 9,
@@ -142,12 +150,7 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     fontFace: 'Arial',
     color: colors.background,
     align: 'center',
-    dir: textDirection,
-    animation: {
-      entrance: 'fadeIn',
-      duration: 1000,
-      delay: 500
-    }
+    rtlMode: isRTL
   });
 
   // Add decorative elements
@@ -162,6 +165,10 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
   // Create content slides
   presentation.structure?.forEach((section: any, index: number) => {
     const slide = pptx.addSlide();
+    
+    // Clean section data
+    const cleanSectionTitle = cleanText(section.section);
+    const cleanSectionContent = cleanText(section.content);
     
     // Professional background
     slide.background = { fill: colors.background };
@@ -183,33 +190,30 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     });
 
     // Section number and title
-    slide.addText(`${index + 1}. ${section.section}`, {
+    slide.addText(`${index + 1}. ${cleanSectionTitle}`, {
       x: 0.3,
       y: 0.1,
       w: 9.4,
       h: 0.6,
-      fontSize: 24,
+      fontSize: 20,
       fontFace: 'Arial',
       color: colors.background,
       bold: true,
       align: isRTL ? 'right' : 'left',
-      dir: textDirection,
-      animation: {
-        entrance: 'slideIn',
-        direction: isRTL ? 'fromRight' : 'fromLeft',
-        duration: 800
-      }
+      rtlMode: isRTL
     });
 
     // Process content with bullet points
-    const contentLines = section.content.split('\n').filter((line: string) => line.trim());
+    const contentLines = cleanSectionContent.split('\n').filter((line: string) => line.trim());
     let currentY = 1.5;
     
     contentLines.forEach((line: string, lineIndex: number) => {
-      const trimmedLine = line.trim();
+      const trimmedLine = cleanText(line.trim());
+      if (!trimmedLine) return;
+      
       if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
         // Bullet point
-        const bulletText = trimmedLine.substring(1).trim();
+        const bulletText = cleanText(trimmedLine.substring(1).trim());
         
         // Add bullet point shape
         slide.addShape('circle', {
@@ -225,16 +229,11 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
           y: currentY,
           w: 8.5,
           h: 0.4,
-          fontSize: 16,
+          fontSize: 14,
           fontFace: 'Arial',
           color: colors.text,
           align: isRTL ? 'right' : 'left',
-          dir: textDirection,
-          animation: {
-            entrance: 'fadeIn',
-            duration: 600,
-            delay: lineIndex * 200
-          }
+          rtlMode: isRTL
         });
       } else {
         // Regular paragraph
@@ -243,16 +242,11 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
           y: currentY,
           w: 9,
           h: 0.6,
-          fontSize: 16,
+          fontSize: 14,
           fontFace: 'Arial',
           color: colors.text,
           align: isRTL ? 'right' : 'left',
-          dir: textDirection,
-          animation: {
-            entrance: 'fadeIn',
-            duration: 600,
-            delay: lineIndex * 200
-          }
+          rtlMode: isRTL
         });
       }
       currentY += 0.5;
@@ -293,7 +287,11 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     }
   };
 
-  conclusionSlide.addText('Thank You! 🙏', {
+  // Conclusion text based on language
+  const thankYouText = isRTL ? 'شكرًا لكم!' : 'Thank You!';
+  const discussionText = isRTL ? 'الأسئلة والمناقشة' : 'Questions & Discussion';
+  
+  conclusionSlide.addText(thankYouText, {
     x: 0.5,
     y: 2.5,
     w: 9,
@@ -303,13 +301,10 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     color: colors.background,
     bold: true,
     align: 'center',
-    animation: {
-      entrance: 'bounceIn',
-      duration: 1200
-    }
+    rtlMode: isRTL
   });
 
-  conclusionSlide.addText('Questions & Discussion', {
+  conclusionSlide.addText(discussionText, {
     x: 0.5,
     y: 4.5,
     w: 9,
@@ -318,11 +313,7 @@ async function generatePPTX(presentation: any): Promise<Uint8Array> {
     fontFace: 'Arial',
     color: colors.background,
     align: 'center',
-    animation: {
-      entrance: 'fadeIn',
-      duration: 1000,
-      delay: 800
-    }
+    rtlMode: isRTL
   });
 
   // Generate and return the PPTX file
