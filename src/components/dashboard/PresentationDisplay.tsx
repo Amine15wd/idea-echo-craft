@@ -31,7 +31,7 @@ const PresentationDisplay = ({
   onSave 
 }: PresentationDisplayProps) => {
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
+  
   const presentationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
