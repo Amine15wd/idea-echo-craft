@@ -221,8 +221,7 @@ const Create = ({
           one_liner: generatedPresentation.oneLiner,
           transcript,
           structure: generatedPresentation.structure,
-          duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`,
-          pptx_file_path: null // Will be updated when PowerPoint is generated
+          duration: `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`
         });
 
       if (error) throw error;

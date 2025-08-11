@@ -20,7 +20,7 @@ interface Presentation {
   createdAt: string;
   duration: string;
   transcript?: string;
-  pptxFilePath?: string;
+  
   structure?: {
     section: string;
     content: string;
@@ -58,7 +58,7 @@ const LibraryView = () => {
         createdAt: new Date(p.created_at).toLocaleDateString(),
         duration: p.duration || '',
         transcript: p.transcript || '',
-        pptxFilePath: p.pptx_file_path || '',
+        
         structure: p.structure as any
       }));
 
@@ -228,37 +228,6 @@ const LibraryView = () => {
     }
   };
 
-  const handleDownloadPPTX = async (presentation: Presentation) => {
-    if (!presentation.pptxFilePath) {
-      toast.error('No PowerPoint file available for this presentation');
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .storage
-        .from('presentations-pptx')
-        .createSignedUrl(presentation.pptxFilePath, 3600);
-
-      if (error) throw error;
-
-      if (data?.signedUrl) {
-        const link = document.createElement('a');
-        link.href = data.signedUrl;
-        link.download = `${presentation.title || 'presentation'}.pptx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success('💎 PowerPoint downloaded successfully!');
-      } else {
-        throw new Error('Failed to get download URL');
-      }
-    } catch (error) {
-      console.error('Error downloading PowerPoint:', error);
-      toast.error('Failed to download PowerPoint file');
-    }
-  };
 
   const handleViewPresentation = (presentation: Presentation) => {
     setSelectedPresentation(presentation);
@@ -459,16 +428,6 @@ const LibraryView = () => {
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           📄 Download PDF
-                        </Button>
-                        
-                        <Button
-                          onClick={() => handleDownloadPPTX(presentation)}
-                          disabled={!presentation.pptxFilePath}
-                          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                          title={presentation.pptxFilePath ? "Fully editable presentations for PowerPoint" : "PowerPoint file not available"}
-                        >
-                          <FileSpreadsheet className="w-4 h-4 mr-2" />
-                          💎 Download PowerPoint
                         </Button>
                       </div>
                     </div>

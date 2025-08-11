@@ -61,46 +61,6 @@ const PresentationDisplay = ({
   };
 
 
-  const generatePowerPoint = async () => {
-    if (!user) {
-      toast.error("Please sign in to generate PowerPoint");
-      return;
-    }
-
-    setIsGeneratingPPTX(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-pptx', {
-        body: { 
-          presentation,
-          userId: user.id
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to generate PowerPoint');
-      }
-
-      if (data?.downloadUrl) {
-        // Create download link
-        const link = document.createElement('a');
-        link.href = data.downloadUrl;
-        link.download = `${presentation.title || 'presentation'}.pptx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success("💎 PowerPoint generated and downloaded successfully!");
-      } else {
-        throw new Error('No download URL received');
-      }
-    } catch (error) {
-      console.error('Error generating PowerPoint:', error);
-      toast.error('Failed to generate PowerPoint. Please try again.');
-    } finally {
-      setIsGeneratingPPTX(false);
-    }
-  };
 
   // Add emojis to section titles
   const getSectionEmoji = (index: number) => {
@@ -186,16 +146,6 @@ const PresentationDisplay = ({
             🗑️ Delete & Create New
           </Button>
 
-          <Button 
-            onClick={generatePowerPoint}
-            disabled={isGeneratingPPTX}
-            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-xl"
-            size="lg"
-            title="Fully editable presentations for PowerPoint"
-          >
-            <FileText className="w-5 h-5 mr-2" />
-            💎 {isGeneratingPPTX ? 'Generating...' : 'Generate PowerPoint'}
-          </Button>
 
           <Button 
             onClick={() => onSave()}
