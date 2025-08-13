@@ -18,8 +18,9 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Check if coming from password reset flow
+  // Check if coming from password reset flow or email verification
   const isFromReset = searchParams.get('reset') === 'success';
+  const isEmailVerified = searchParams.get('verified') === 'true';
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,8 @@ const Auth = () => {
           navigate("/dashboard");
         }
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Create user account without email confirmation
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -52,8 +54,23 @@ const Auth = () => {
 
         if (error) {
           toast.error(error.message);
-        } else {
-          toast.success("Account created successfully! Please save your password in a safe place - we cannot recover it if you forget it.");
+        } else if (data.user) {
+          // Send custom verification email
+          try {
+            await supabase.functions.invoke('send-verification-email', {
+              body: { 
+                email,
+                userId: data.user.id,
+                fullName: fullName
+              }
+            });
+            
+            toast.success("Account created! Please check your email and click the verification link to complete your signup.");
+            setIsLogin(true); // Switch to login mode
+          } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+            toast.error("Account created but verification email failed. Please contact support.");
+          }
         }
       }
     } catch (error) {
@@ -97,6 +114,15 @@ const Auth = () => {
           <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
             <p className="text-sm text-green-800">
               A new password has been sent to your email address. Please log in with it and then change it from your settings.
+            </p>
+          </div>
+        )}
+
+        {/* Success message for email verification */}
+        {isEmailVerified && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+            <p className="text-sm text-green-800">
+              Your email has been verified successfully! You can now sign in to your account.
             </p>
           </div>
         )}
