@@ -28,16 +28,28 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
       return;
     }
 
+    if (text.trim().length < 20) {
+      toast.error("Please provide more content (at least 20 characters) for a better presentation");
+      return;
+    }
+
     setIsProcessing(true);
     onProcessingChange(true);
     setError(null);
 
     try {
-      console.log('Creating presentation from text:', text);
+      console.log('Creating enhanced presentation from text, length:', text.length);
       
-      const { data, error } = await supabase.functions.invoke('generate-presentation', {
+      // Set timeout for text-based presentation generation
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Presentation generation timed out')), 120000); // 2 minutes
+      });
+      
+      const presentationPromise = supabase.functions.invoke('generate-presentation', {
         body: { transcript: text.trim() }
       });
+      
+      const { data, error } = await Promise.race([presentationPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('Presentation generation error:', error);
@@ -45,18 +57,43 @@ const TextToSpeech = ({ onPresentationGenerated, onProcessingChange }: TextToSpe
       }
 
       if (!data) {
-        throw new Error('No presentation data received');
+        throw new Error('No presentation data received from service');
       }
 
-      console.log('Presentation generated successfully:', data);
+      // Validate presentation structure
+      if (!data.title || !data.oneLiner || !data.structure || !Array.isArray(data.structure)) {
+        throw new Error('Invalid presentation format received. Please try again.');
+      }
+
+      if (data.structure.length < 3) {
+        throw new Error('Generated presentation is too short. Please provide more detailed content.');
+      }
+
+      console.log('Text-based presentation generated successfully:', {
+        title: data.title,
+        sections: data.structure.length,
+        language: data.language
+      });
+      
       setGeneratedPresentation(data);
       onPresentationGenerated(data);
       toast.success("Presentation created successfully!");
     } catch (error) {
       console.error('Error generating presentation:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(`Error generating presentation: ${errorMessage}`);
-      toast.error('Error generating presentation. Please try again.');
+      let userFriendlyMessage = errorMessage;
+      
+      // Provide specific error messages for text input
+      if (errorMessage.includes('timeout')) {
+        userFriendlyMessage = 'Presentation generation took too long. Please try with shorter text.';
+      } else if (errorMessage.includes('quota')) {
+        userFriendlyMessage = 'Service temporarily unavailable. Please try again in a few minutes.';
+      } else if (errorMessage.includes('short')) {
+        userFriendlyMessage = errorMessage; // Keep specific short content messages
+      }
+      
+      setError(`Error generating presentation: ${userFriendlyMessage}`);
+      toast.error(userFriendlyMessage);
     } finally {
       setIsProcessing(false);
       onProcessingChange(false);
